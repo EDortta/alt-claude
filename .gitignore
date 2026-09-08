@@ -1,0 +1,6 @@
+*.env
+.env
+.env.*
+credentials/
+secrets/
+*.log

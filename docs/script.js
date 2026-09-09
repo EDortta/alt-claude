@@ -20,6 +20,11 @@
   };
 
   const set = (selector, value) => { document.querySelectorAll(selector).forEach((element, index) => { const item = Array.isArray(value) ? value[index] : value; if (item !== undefined) element.innerHTML = item; }); };
+  const variantCopy = {
+    'pt-BR': { eyebrow: 'ATALHOS PRONTOS', title: 'Os outros <em>alt-claude</em> também estão aqui.', descriptions: ['OpenRouter · Laguna S-2.1', 'OpenRouter · Nemotron 3 Ultra', 'OpenRouter · North Mini Code'] },
+    en: { eyebrow: 'READY-MADE SHORTCUTS', title: 'The other <em>alt-claude</em> launchers are here too.', descriptions: ['OpenRouter · Laguna S-2.1', 'OpenRouter · Nemotron 3 Ultra', 'OpenRouter · North Mini Code'] },
+    es: { eyebrow: 'ATAJOS LISTOS', title: 'Los otros launchers <em>alt-claude</em> también están aquí.', descriptions: ['OpenRouter · Laguna S-2.1', 'OpenRouter · Nemotron 3 Ultra', 'OpenRouter · North Mini Code'] }
+  };
   function applyLanguage(language) {
     const selected = translations[language] ? language : 'pt-BR';
     const t = translations[selected];
@@ -29,6 +34,7 @@
     set('.features-section .section-heading-row .eyebrow', t.featureEyebrow); set('.section-heading-row h2', t.featureTitle); set('.features-section .section-heading-row > p', t.featureIntro); set('.feature-wide h3', t.wideTitle); set('.feature-wide p', t.wideText); set('.feature-health h3', t.healthTitle); set('.feature-health > p', t.healthText); set('.feature-config h3', t.configTitle); set('.feature-config > p', t.configText); set('.feature-full h3', t.compatTitle); set('.feature-full-copy > p', t.compatText);
     set('.install-copy .eyebrow', t.installEyebrow); set('.install-copy h2', t.installTitle); set('.install-copy > p:last-child', t.installText); set('.install-success', `<span>✓</span> ${t.success}`); set('.examples-section .eyebrow', t.examplesEyebrow); set('.examples-section h2', t.examplesTitle); set('.examples-section .section-heading-row > p', t.examplesIntro); set('.example-card h3', t.exampleTitles); set('.example-card p', t.exampleTexts);
     set('.faq-title .eyebrow', t.faqEyebrow); set('.faq-title h2', t.faqTitle); set('.faq-list summary', t.faqQuestions.map((question) => `${question}<span aria-hidden="true"></span>`)); set('.faq-list details > p', t.faqTexts); set('.closing-section h2', t.closingTitle); set('.closing-section > p:not(.eyebrow)', t.closingText); set('.button-light span:first-child', t.openGithub); set('.site-footer > p', t.footer); set('.toast', t.copied);
+    set('.variants-panel .eyebrow', variantCopy[selected].eyebrow); set('.variants-panel h3', variantCopy[selected].title); set('.variant-list span', variantCopy[selected].descriptions);
     document.documentElement.lang = selected; languageButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.language === selected));
     try { localStorage.setItem('alt-claude-language', selected); } catch { /* storage may be unavailable */ }
   }

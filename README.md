@@ -89,6 +89,11 @@ chmod 600 ~/.config/credentials/personal/ai/*.env
 
 See [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), and [docs/usage.md](docs/usage.md).
 
+## Landing page
+
+The GitHub Pages landing page lives in [`docs/`](docs/). Configure Pages to publish
+from the `main` branch and the `/docs` folder.
+
 ## Design principles
 
 - one launcher, not one script per provider;

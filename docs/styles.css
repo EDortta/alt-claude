@@ -116,7 +116,7 @@ code, pre { font-family: var(--mono); }
   font: 500 12px var(--mono);
   letter-spacing: -.06em;
 }
-.main-nav { display: flex; align-items: center; gap: 34px; font-size: 13px; font-weight: 600; }
+.main-nav { display: flex; align-items: center; gap: 24px; font-size: 13px; font-weight: 600; }
 .main-nav > a:not(.nav-cta) { position: relative; }
 .main-nav > a:not(.nav-cta)::after {
   content: "";
@@ -139,6 +139,9 @@ code, pre { font-family: var(--mono); }
   transition: background .2s, color .2s, transform .2s;
 }
 .nav-cta:hover { color: var(--white); background: var(--ink); transform: translateY(-2px); }
+.language-switcher { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font: 500 10px var(--mono); }
+.language-switcher button { padding: 2px 0; color: inherit; background: transparent; border: 0; cursor: pointer; }
+.language-switcher button:hover, .language-switcher button.is-active { color: var(--coral-dark); }
 .menu-button { display: none; border: 0; background: transparent; }
 
 .hero {
@@ -398,6 +401,17 @@ code, pre { font-family: var(--mono); }
 .install-success { padding: 12px 27px; color: #a4a89f; background: #1a1c19; border-top: 1px solid rgba(255,255,255,.07); font: 400 8px var(--mono); }
 .install-success span { margin-right: 6px; color: var(--acid); }
 
+.examples-section { padding-bottom: 145px; }
+.examples-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.example-card { min-height: 285px; padding: 29px; display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--ink); box-shadow: 7px 8px 0 var(--paper-deep); }
+.example-card:nth-child(2) { transform: translateY(18px); background: var(--blue); }
+.example-card:nth-child(3) { background: var(--acid); }
+.example-card h3 { margin: 18px 0 8px; font: 400 35px/.95 var(--serif); }
+.example-card p { max-width: 270px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.example-command { min-height: 55px; margin-top: auto; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(255,255,255,.58); border: 1px solid rgba(31,31,28,.3); }
+.example-command code { overflow: auto; font-size: 10px; line-height: 1.45; }
+.example-command .copy-button { flex: 0 0 auto; }
+
 .faq-section { padding-bottom: 145px; display: grid; grid-template-columns: .82fr 1.18fr; gap: clamp(70px, 9vw, 150px); }
 .faq-title { position: sticky; top: 40px; align-self: start; }
 .faq-list { border-top: 1px solid var(--ink); }
@@ -483,8 +497,10 @@ details code { padding: 2px 4px; color: var(--ink); background: var(--paper-deep
   .story-card { min-height: 460px; display: flex; }
   .story-number { align-self: flex-end; }
   .section-heading-row { align-items: flex-start; flex-direction: column; gap: 25px; }
-  .features-section, .install-section, .faq-section { padding-bottom: 105px; }
+  .features-section, .install-section, .examples-section, .faq-section { padding-bottom: 105px; }
   .bento-grid { grid-template-columns: 1fr; }
+  .examples-grid { grid-template-columns: 1fr; }
+  .example-card:nth-child(2) { transform: none; }
   .feature-wide, .feature-full { grid-column: auto; grid-template-columns: 1fr; }
   .feature-wide { min-height: 620px; }
   .route-map { margin-top: 25px; height: 250px; }

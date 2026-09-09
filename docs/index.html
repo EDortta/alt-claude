@@ -32,7 +32,15 @@
     <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
       <a href="#como-funciona">Como funciona</a>
       <a href="#recursos">Recursos</a>
+      <a href="#exemplos">Exemplos</a>
       <a href="#faq">Perguntas</a>
+      <div class="language-switcher" aria-label="Idioma">
+        <button type="button" data-language="en">EN</button>
+        <span aria-hidden="true">|</span>
+        <button type="button" data-language="es">ES</button>
+        <span aria-hidden="true">|</span>
+        <button type="button" data-language="pt-BR">PT-BR</button>
+      </div>
       <a class="nav-cta" href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer">
         Ver no GitHub
         <span aria-hidden="true">↗</span>
@@ -272,6 +280,39 @@
 ./install.sh</code></pre>
           <div class="install-success"><span>✓</span> Pronto para escolher caminhos melhores.</div>
         </div>
+      </div>
+    </section>
+
+    <section class="examples-section section-shell" id="exemplos">
+      <div class="section-heading-row">
+        <div>
+          <p class="eyebrow">EXEMPLOS DE USO</p>
+          <h2>Escolha uma rota.<br><em>Continue.</em></h2>
+        </div>
+        <p>Comandos simples para começar. O que você não usar continua sendo problema de outra pessoa.</p>
+      </div>
+      <div class="examples-grid">
+        <article class="example-card">
+          <span class="feature-index">ROTA PADRÃO</span>
+          <h3>Copilot</h3>
+          <p>Use o gateway local do GitHub Copilot.</p>
+          <div class="example-command"><code>alt-claude --use copilot</code><button type="button" class="copy-button" data-copy-target="command-copilot">copiar</button></div>
+          <code id="command-copilot" class="sr-only">alt-claude --use copilot</code>
+        </article>
+        <article class="example-card">
+          <span class="feature-index">ROTA OPENAI</span>
+          <h3>Codex</h3>
+          <p>Encaminhe o Claude Code para o proxy Codex.</p>
+          <div class="example-command"><code>alt-claude --use codex --yolo</code><button type="button" class="copy-button" data-copy-target="command-codex">copiar</button></div>
+          <code id="command-codex" class="sr-only">alt-claude --use codex --yolo</code>
+        </article>
+        <article class="example-card">
+          <span class="feature-index">ROTA FLEXÍVEL</span>
+          <h3>OpenRouter</h3>
+          <p>Escolha o modelo compatível com Anthropic.</p>
+          <div class="example-command"><code>alt-claude --use openrouter --model provider/model</code><button type="button" class="copy-button" data-copy-target="command-openrouter">copiar</button></div>
+          <code id="command-openrouter" class="sr-only">alt-claude --use openrouter --model provider/model</code>
+        </article>
       </div>
     </section>
 

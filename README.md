@@ -21,7 +21,12 @@ cd alt-claude
 ./install.sh
 ```
 
-The installer places the launcher at `~/.local/bin/alt-claude`.
+The installer places `alt-claude` and the included `alt-claude-*` shortcuts at
+`~/.local/bin/`. To use another destination, set `ALT_CLAUDE_INSTALL_DIR`:
+
+```bash
+ALT_CLAUDE_INSTALL_DIR="$HOME/bin" ./install.sh
+```
 
 ## Basic usage
 

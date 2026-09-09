@@ -1,17 +1,36 @@
 #!/usr/bin/env bash
+# instale em ~/.local/bin/alt-claude
 set -euo pipefail
 
+#
+# alt-claude
+#
+# Examples:
+#
+#   alt-claude --use copilot
+#   alt-claude --use codex
+#   alt-claude --use kimi
+#   alt-claude --use openrouter
+#
+#   alt-claude --use copilot --yolo
+#   alt-claude --use kimi --yolo
+#   alt-claude --use openrouter --model qwen/qwen3-coder
+#
+# Everything not consumed by alt-claude is forwarded to Claude Code.
+#
+
 CREDENTIALS_DIR="${ALT_CLAUDE_CREDENTIALS_DIR:-$HOME/.config/credentials/personal/ai}"
+
 USE=""
 MODEL=""
 REPORT_USAGE=0
+
 CLAUDE_ARGS=()
 
 usage() {
-  cat <<'EOF'
+    cat <<'EOF'
 Usage:
   alt-claude --use <provider> [options] [claude options]
-  alt-claude --usage
 
 Providers:
   copilot
@@ -21,274 +40,715 @@ Providers:
   grok
   nvidia
 
-Options:
+alt-claude options:
   --use PROVIDER
   --use=PROVIDER
-  --user PROVIDER      alias tolerante para --use
+  --user PROVIDER    alias tolerante para --use
   --user=PROVIDER
   --model MODEL
   --model=MODEL
-  --yolo               traduz para --dangerously-skip-permissions
+  --yolo
   --list
-  --usage              valida credenciais e mostra consumo quando disponível
+  --usage
   -h, --help
 
 Examples:
-  alt-claude --use copilot --yolo
-  alt-claude --use codex --resume SESSION_ID
-  alt-claude --use openrouter --model nvidia/nemotron-3-ultra-550b-a55b:free --yolo
+  alt-claude --use copilot
+  alt-claude --use codex --yolo
   alt-claude --use kimi --yolo
+  alt-claude --use openrouter --model qwen/qwen3-coder
+  alt-claude --use copilot --resume SESSION_ID
   alt-claude --usage
 EOF
 }
 
-die() { echo "Erro: $*" >&2; exit 1; }
-have() { command -v "$1" >/dev/null 2>&1; }
+die() {
+    echo "Erro: $*" >&2
+    exit 1
+}
+
+have() {
+    command -v "$1" >/dev/null 2>&1
+}
 
 load_credentials() {
-  local provider="$1" file="${CREDENTIALS_DIR}/${provider}.env"
-  [ -r "$file" ] || die "credencial não encontrada: $file"
-  set -a
-  # shellcheck disable=SC1090
-  source "$file"
-  set +a
+    local provider="$1"
+    local file="${CREDENTIALS_DIR}/${provider}.env"
+
+    [ -r "$file" ] || die "credencial não encontrada: $file"
+
+    set -a
+    # shellcheck disable=SC1090
+    source "$file"
+    set +a
 }
 
 resolve_copilot_api_home() {
-  local preferred="${COPILOT_API_HOME:-${CREDENTIALS_DIR}/copilot-api}"
-  local legacy="${XDG_DATA_HOME:-$HOME/.local/share}/copilot-api"
-  if [ -n "${COPILOT_API_HOME:-}" ]; then printf '%s\n' "$preferred"; return; fi
-  if [ -r "${preferred}/config.json" ] || [ -r "${preferred}/github_token" ]; then printf '%s\n' "$preferred"; return; fi
-  if [ -r "${legacy}/config.json" ] || [ -r "${legacy}/github_token" ]; then printf '%s\n' "$legacy"; return; fi
-  printf '%s\n' "$preferred"
+    local preferred="${COPILOT_API_HOME:-${CREDENTIALS_DIR}/copilot-api}"
+    local legacy="${XDG_DATA_HOME:-$HOME/.local/share}/copilot-api"
+
+    if [ -n "${COPILOT_API_HOME:-}" ]; then
+        printf '%s\n' "$preferred"
+        return 0
+    fi
+
+    if [ -r "${preferred}/config.json" ] || [ -r "${preferred}/github_token" ]; then
+        printf '%s\n' "$preferred"
+        return 0
+    fi
+
+    if [ -r "${legacy}/config.json" ] || [ -r "${legacy}/github_token" ]; then
+        printf '%s\n' "$legacy"
+        return 0
+    fi
+
+    printf '%s\n' "$preferred"
 }
 
 clear_anthropic_env() {
-  unset ANTHROPIC_BASE_URL ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_MODEL || true
-  unset ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_DEFAULT_SONNET_MODEL || true
-  unset ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_DEFAULT_FABLE_MODEL || true
-  unset CLAUDE_CODE_SUBAGENT_MODEL ANTHROPIC_CUSTOM_MODEL_OPTION || true
+    unset ANTHROPIC_BASE_URL || true
+    unset ANTHROPIC_API_KEY || true
+    unset ANTHROPIC_AUTH_TOKEN || true
+    unset ANTHROPIC_MODEL || true
+
+    unset ANTHROPIC_DEFAULT_OPUS_MODEL || true
+    unset ANTHROPIC_DEFAULT_SONNET_MODEL || true
+    unset ANTHROPIC_DEFAULT_HAIKU_MODEL || true
+    unset ANTHROPIC_DEFAULT_FABLE_MODEL || true
+
+    unset CLAUDE_CODE_SUBAGENT_MODEL || true
+    unset ANTHROPIC_CUSTOM_MODEL_OPTION || true
 }
 
 set_all_models() {
-  local model="$1"
-  export ANTHROPIC_MODEL="$model"
-  export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
-  export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
-  export ANTHROPIC_DEFAULT_HAIKU_MODEL="$model"
-  export ANTHROPIC_DEFAULT_FABLE_MODEL="$model"
-  export CLAUDE_CODE_SUBAGENT_MODEL="$model"
+    local model="$1"
+
+    export ANTHROPIC_MODEL="$model"
+    export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+    export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+    export ANTHROPIC_DEFAULT_HAIKU_MODEL="$model"
+    export ANTHROPIC_DEFAULT_FABLE_MODEL="$model"
+    export CLAUDE_CODE_SUBAGENT_MODEL="$model"
 }
 
 wait_http() {
-  local url="$1" attempts="${2:-50}"
-  for ((i=0; i<attempts; i++)); do
-    curl -fsS "$url" >/dev/null 2>&1 && return 0
-    sleep 0.2
-  done
-  return 1
+    local url="$1"
+    local attempts="${2:-50}"
+
+    for ((i=0; i<attempts; i++)); do
+        if curl -fsS "$url" >/dev/null 2>&1; then
+            return 0
+        fi
+
+        sleep 0.2
+    done
+
+    return 1
 }
 
-http_request() {
-  local method="$1" url="$2"; shift 2
-  curl -sS --connect-timeout 8 --max-time 20 -X "$method" \
-    -w '\n__HTTP_STATUS__:%{http_code}' "$@" "$url" 2>/dev/null || true
-}
+assert_codex_accounts() {
+    local status
 
-split_http() {
-  local raw="$1"
-  HTTP_STATUS="$(printf '%s\n' "$raw" | sed -n 's/^__HTTP_STATUS__://p' | tail -n1)"
-  HTTP_BODY="$(printf '%s\n' "$raw" | sed '/^__HTTP_STATUS__:/d')"
+    status="$(claude-codex-proxy accounts list 2>/dev/null || true)"
+
+    if printf '%s' "$status" | grep -q 'No accounts configured'; then
+        die "claude-codex-proxy está instalado, mas não há contas configuradas. Rode: claude-codex-proxy accounts add --no-browser"
+    fi
 }
 
 json_field() {
-  local path="$1"
-  python3 -c '
-import json,sys
-p=sys.argv[1].split(".")
+    local path="$1"
+    python3 -c '
+import json, sys
+path = sys.argv[1].split(".")
 try:
- o=json.load(sys.stdin)
- for k in p: o=o.get(k) if isinstance(o,dict) else None
- print("" if o is None else o)
-except Exception: print("")
+    obj = json.load(sys.stdin)
+    for part in path:
+        if isinstance(obj, dict):
+            obj = obj.get(part)
+        else:
+            obj = None
+            break
+    if obj is None:
+        print("")
+    elif isinstance(obj, bool):
+        print("true" if obj else "false")
+    elif isinstance(obj, (dict, list)):
+        print(json.dumps(obj, ensure_ascii=False))
+    else:
+        print(obj)
+except Exception:
+    print("")
 ' "$path"
 }
 
 money() {
-  python3 - "${1:-}" <<'PY'
+    local v="${1:-}"
+    if [ -z "$v" ]; then
+        printf '%s' "N/D"
+    else
+        python3 - "$v" <<'PY'
 import sys
-try: print(f"US$ {float(sys.argv[1]):.4f}")
-except: print("N/D")
+try:
+    print(f"US$ {float(sys.argv[1]):.4f}")
+except Exception:
+    print("N/D")
 PY
+    fi
 }
 
-print_usage_row() { printf '%-12s %-12s %-18s %s\n' "$1" "$2" "$3" "$4"; }
+http_get() {
+    local url="$1"
+    shift
+    curl -sS --connect-timeout 8 --max-time 15 \
+        -w '\n__HTTP_STATUS__:%{http_code}' \
+        "$@" "$url" 2>/dev/null || true
+}
+
+split_http() {
+    local raw="$1"
+    HTTP_STATUS="$(printf '%s\n' "$raw" | sed -n 's/^__HTTP_STATUS__://p' | tail -n1)"
+    HTTP_BODY="$(printf '%s\n' "$raw" | sed '/^__HTTP_STATUS__:/d')"
+}
+
+print_usage_row() {
+    printf '%-12s %-12s %-18s %s\n' "$1" "$2" "$3" "$4"
+}
 
 usage_openrouter() {
-  local file="${CREDENTIALS_DIR}/openrouter.env"; [ -r "$file" ] || return 0
-  (
-    set +u; set -a; source "$file"; set +a
-    [ -n "${OPENROUTER_API_KEY:-}" ] || { print_usage_row openrouter "SEM CHAVE" - "OPENROUTER_API_KEY ausente"; return; }
-    local raw used monthly remaining
-    raw="$(http_request GET https://openrouter.ai/api/v1/key -H "Authorization: Bearer ${OPENROUTER_API_KEY}")"; split_http "$raw"
-    if [ "$HTTP_STATUS" = 200 ]; then
-      used="$(printf '%s' "$HTTP_BODY" | json_field data.usage)"
-      monthly="$(printf '%s' "$HTTP_BODY" | json_field data.usage_monthly)"
-      remaining="$(printf '%s' "$HTTP_BODY" | json_field data.limit_remaining)"
-      print_usage_row openrouter OK "$(money "$monthly")" "total=$(money "$used"), limite restante=$(money "$remaining")"
-    else print_usage_row openrouter "HTTP ${HTTP_STATUS:-ERR}" - "chave rejeitada/indisponível"; fi
-  )
+    local file="${CREDENTIALS_DIR}/openrouter.env"
+    [ -r "$file" ] || return 0
+
+    (
+        set +u
+        set -a
+        # shellcheck disable=SC1090
+        source "$file"
+        set +a
+
+        if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+            print_usage_row "openrouter" "SEM CHAVE" "-" "OPENROUTER_API_KEY ausente"
+            return
+        fi
+
+        local raw status body used monthly remaining
+        raw="$(http_get "https://openrouter.ai/api/v1/key" \
+            -H "Authorization: Bearer ${OPENROUTER_API_KEY}")"
+        split_http "$raw"
+        status="$HTTP_STATUS"
+        body="$HTTP_BODY"
+
+        if [ "$status" = "200" ]; then
+            used="$(printf '%s' "$body" | json_field data.usage)"
+            monthly="$(printf '%s' "$body" | json_field data.usage_monthly)"
+            remaining="$(printf '%s' "$body" | json_field data.limit_remaining)"
+            print_usage_row "openrouter" "OK" "$(money "$monthly")" \
+                "total=$(money "$used"), limite restante=$(money "$remaining")"
+        else
+            print_usage_row "openrouter" "HTTP ${status:-ERR}" "-" "chave rejeitada/indisponível"
+        fi
+    )
 }
 
 usage_kimi() {
-  local file="${CREDENTIALS_DIR}/kimi.env"; [ -r "$file" ] || return 0
-  (
-    set +u; set -a; source "$file"; set +a
-    [ -n "${KIMI_API_KEY:-}" ] || { print_usage_row kimi "SEM CHAVE" - "KIMI_API_KEY ausente"; return; }
-    local raw
-    raw="$(http_request POST https://api.kimi.com/coding/v1/messages \
-      -H "x-api-key: ${KIMI_API_KEY}" \
-      -H 'anthropic-version: 2023-06-01' \
-      -H 'content-type: application/json' \
-      --data '{"model":"k3","max_tokens":1,"messages":[{"role":"user","content":"ping"}]}')"
-    split_http "$raw"
-    case "$HTTP_STATUS" in
-      200) print_usage_row kimi OK N/D "Anthropic Messages API aceita a chave" ;;
-      429) print_usage_row kimi OK N/D "chave válida; quota/rate limit atingido" ;;
-      401) print_usage_row kimi "HTTP 401" - "chave inválida/expirada ou não é Kimi Code" ;;
-      403) print_usage_row kimi "HTTP 403" - "chave reconhecida, sem acesso/plano" ;;
-      *)   print_usage_row kimi "HTTP ${HTTP_STATUS:-ERR}" - "serviço indisponível ou resposta inesperada" ;;
-    esac
-  )
+    local file="${CREDENTIALS_DIR}/kimi.env"
+    [ -r "$file" ] || return 0
+
+    (
+        set +u
+        set -a
+        # shellcheck disable=SC1090
+        source "$file"
+        set +a
+
+        if [ -z "${KIMI_API_KEY:-}" ]; then
+            print_usage_row "kimi" "SEM CHAVE" "-" "KIMI_API_KEY ausente"
+            return
+        fi
+
+        local raw
+        raw="$(http_get "https://api.kimi.com/coding/v1/models" \
+            -H "Authorization: Bearer ${KIMI_API_KEY}")"
+        split_http "$raw"
+
+        if [ "$HTTP_STATUS" = "200" ]; then
+            print_usage_row "kimi" "OK" "N/D" "quota é da conta; API key não expõe uso diretamente"
+        else
+            print_usage_row "kimi" "HTTP ${HTTP_STATUS:-ERR}" "-" "Kimi Code key inválida, expirada ou plataforma incorreta"
+        fi
+    )
 }
 
 usage_grok() {
-  local file="${CREDENTIALS_DIR}/grok.env"; [ -r "$file" ] || return 0
-  (
-    set +u; set -a; source "$file"; set +a
-    [ -n "${GROK_API_KEY:-}" ] || { print_usage_row grok "SEM CHAVE" - "GROK_API_KEY ausente"; return; }
-    local raw; raw="$(http_request GET https://api.x.ai/v1/models -H "Authorization: Bearer ${GROK_API_KEY}")"; split_http "$raw"
-    [ "$HTTP_STATUS" = 200 ] && print_usage_row grok OK N/D "uso histórico exige xAI Management API" || print_usage_row grok "HTTP ${HTTP_STATUS:-ERR}" - "chave rejeitada/indisponível"
-  )
+    local file="${CREDENTIALS_DIR}/grok.env"
+    [ -r "$file" ] || return 0
+
+    (
+        set +u
+        set -a
+        # shellcheck disable=SC1090
+        source "$file"
+        set +a
+
+        if [ -z "${GROK_API_KEY:-}" ]; then
+            print_usage_row "grok" "SEM CHAVE" "-" "GROK_API_KEY ausente"
+            return
+        fi
+
+        local raw
+        raw="$(http_get "https://api.x.ai/v1/models" \
+            -H "Authorization: Bearer ${GROK_API_KEY}")"
+        split_http "$raw"
+
+        if [ "$HTTP_STATUS" = "200" ]; then
+            print_usage_row "grok" "OK" "N/D" "uso histórico exige xAI Management API"
+        else
+            print_usage_row "grok" "HTTP ${HTTP_STATUS:-ERR}" "-" "chave rejeitada/indisponível"
+        fi
+    )
 }
 
 usage_nvidia() {
-  local file="${CREDENTIALS_DIR}/nvidia.env"; [ -r "$file" ] || return 0
-  (
-    set +u; set -a; source "$file"; set +a
-    [ -n "${NVIDIA_API_KEY:-}" ] || { print_usage_row nvidia "SEM CHAVE" - "NVIDIA_API_KEY ausente"; return; }
-    local raw; raw="$(http_request GET https://integrate.api.nvidia.com/v1/models -H "Authorization: Bearer ${NVIDIA_API_KEY}")"; split_http "$raw"
-    [ "$HTTP_STATUS" = 200 ] && print_usage_row nvidia OK N/D "API pública não expõe uso por chave" || print_usage_row nvidia "HTTP ${HTTP_STATUS:-ERR}" - "chave rejeitada/indisponível"
-  )
+    local file="${CREDENTIALS_DIR}/nvidia.env"
+    [ -r "$file" ] || return 0
+
+    (
+        set +u
+        set -a
+        # shellcheck disable=SC1090
+        source "$file"
+        set +a
+
+        if [ -z "${NVIDIA_API_KEY:-}" ]; then
+            print_usage_row "nvidia" "SEM CHAVE" "-" "NVIDIA_API_KEY ausente"
+            return
+        fi
+
+        local raw
+        raw="$(http_get "https://integrate.api.nvidia.com/v1/models" \
+            -H "Authorization: Bearer ${NVIDIA_API_KEY}")"
+        split_http "$raw"
+
+        if [ "$HTTP_STATUS" = "200" ]; then
+            print_usage_row "nvidia" "OK" "N/D" "API pública não expõe uso por chave neste endpoint"
+        else
+            print_usage_row "nvidia" "HTTP ${HTTP_STATUS:-ERR}" "-" "chave rejeitada/indisponível"
+        fi
+    )
 }
 
 usage_copilot() {
-  local file="${CREDENTIALS_DIR}/copilot.env" api_home; api_home="$(resolve_copilot_api_home)"
-  [ -r "$file" ] || [ -r "${api_home}/config.json" ] || [ -r "${api_home}/github_token" ] || return 0
-  have npx && have node || { print_usage_row copilot N/D N/D "npx/node indisponível"; return; }
-  local debug_json
-  debug_json="$(npx --yes @jeffreycao/copilot-api@latest debug --api-home "$api_home" --json 2>/dev/null || true)"
-  if printf '%s' "$debug_json" | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{try{let i=s.indexOf("{");let x=JSON.parse(s.slice(i));process.exit(x?.tokenExists===true||(x?.providers?.enabled?.length||0)>0?0:1)}catch{process.exit(1)}})'; then
-    print_usage_row copilot OK N/D "autenticação local configurada"
-  else print_usage_row copilot ERRO - "autenticação local não configurada"; fi
+    local file="${CREDENTIALS_DIR}/copilot.env"
+    local api_home
+    api_home="$(resolve_copilot_api_home)"
+    if [ ! -r "$file" ] && [ ! -r "${api_home}/config.json" ] && [ ! -r "${api_home}/github_token" ]; then
+        return 0
+    fi
+
+    if ! have npx || ! have node; then
+        print_usage_row "copilot" "N/D" "N/D" "npx/node indisponível"
+        return 0
+    fi
+
+    local debug_json
+    debug_json="$(npx --yes @jeffreycao/copilot-api@latest debug --api-home "$api_home" --json 2>/dev/null || true)"
+
+    if printf '%s' "$debug_json" | node -e '
+let s=""; process.stdin.on("data",c=>s+=c); process.stdin.on("end",()=>{
+  try { const i=s.indexOf("{"); const x=JSON.parse(s.slice(i));
+    process.exit(x?.tokenExists===true || (x?.providers?.enabled?.length||0)>0 ? 0:1);
+  } catch { process.exit(1); }
+});'; then
+        print_usage_row "copilot" "OK" "N/D" "autenticação local configurada"
+    else
+        print_usage_row "copilot" "ERRO" "-" "autenticação local não configurada"
+    fi
 }
 
 usage_codex() {
-  have claude-codex-proxy || return 0
-  local status; status="$(claude-codex-proxy accounts list 2>/dev/null || true)"
-  if printf '%s' "$status" | grep -q 'No accounts configured'; then print_usage_row codex ERRO - "nenhuma conta configurada"
-  elif [ -n "$status" ]; then print_usage_row codex OK N/D "conta(s) configurada(s)"
-  else print_usage_row codex N/D N/D "não foi possível consultar contas"; fi
+    if ! have claude-codex-proxy; then
+        return 0
+    fi
+
+    local status
+    status="$(claude-codex-proxy accounts list 2>/dev/null || true)"
+    if printf '%s' "$status" | grep -q 'No accounts configured'; then
+        print_usage_row "codex" "ERRO" "-" "nenhuma conta configurada"
+    elif [ -n "$status" ]; then
+        print_usage_row "codex" "OK" "N/D" "conta(s) configurada(s)"
+    else
+        print_usage_row "codex" "N/D" "N/D" "não foi possível consultar contas"
+    fi
 }
 
 usage_report() {
-  have curl || die "curl não está no PATH"; have python3 || die "python3 não está no PATH"
-  echo "Credenciais: $CREDENTIALS_DIR"; echo
-  printf '%-12s %-12s %-18s %s\n' PROVEDOR STATUS "USO MÊS" DETALHE
-  printf '%-12s %-12s %-18s %s\n' ------------ ------------ ------------------ ----------------------------------------
-  usage_copilot; usage_codex; usage_openrouter; usage_kimi; usage_grok; usage_nvidia
+    have curl || die "curl não está no PATH"
+    have python3 || die "python3 não está no PATH"
+
+    echo "Credenciais: $CREDENTIALS_DIR"
+    echo
+    printf '%-12s %-12s %-18s %s\n' "PROVEDOR" "STATUS" "USO MÊS" "DETALHE"
+    printf '%-12s %-12s %-18s %s\n' "------------" "------------" "------------------" "----------------------------------------"
+
+    usage_copilot
+    usage_codex
+    usage_openrouter
+    usage_kimi
+    usage_grok
+    usage_nvidia
 }
 
+#
+# Keep Claude in the normal terminal instead of alternate/fullscreen screen.
+#
+export CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1
+
+#
+# Avoid the claude.ai connector warning when using a gateway/auth source.
+# Leave room for an explicit override from the shell if needed.
+#
+: "${ENABLE_CLAUDEAI_MCP_SERVERS:=0}"
+export ENABLE_CLAUDEAI_MCP_SERVERS
+
+#
+# Default to bare mode so external auth sources do not clash with the stored
+# claude.ai login. Set ALT_CLAUDE_NO_BARE=1 to keep the full Claude Code shell.
+#
+if [ "${ALT_CLAUDE_NO_BARE:-0}" != 1 ]; then
+    CLAUDE_ARGS+=("--bare")
+fi
+
+#
+# Parse alt-claude arguments.
+#
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --use)
+            [ "$#" -ge 2 ] || die "--use requer um provider"
+            USE="$2"
+            shift 2
+            ;;
+
+        --use=*)
+            USE="${1#*=}"
+            shift
+            ;;
+
+        --user)
+            [ "$#" -ge 2 ] || die "--user requer um provider"
+            USE="$2"
+            echo "Aviso: --user é alias de --use; prefira --use." >&2
+            shift 2
+            ;;
+
+        --user=*)
+            USE="${1#*=}"
+            echo "Aviso: --user é alias de --use; prefira --use." >&2
+            shift
+            ;;
+
+        --model)
+            [ "$#" -ge 2 ] || die "--model requer um modelo"
+            MODEL="$2"
+            shift 2
+            ;;
+
+        --model=*)
+            MODEL="${1#*=}"
+            shift
+            ;;
+
+        --yolo)
+            CLAUDE_ARGS+=("--dangerously-skip-permissions")
+            shift
+            ;;
+
+        --usage)
+            REPORT_USAGE=1
+            shift
+            ;;
+
+        --list)
+            cat <<'EOF'
+Providers disponíveis:
+
+  copilot       GitHub Copilot via copilot-api
+  codex         Codex via claude-codex-proxy
+  openrouter    OpenRouter Anthropic-compatible
+  kimi          Kimi Code Anthropic-compatible
+  grok          não direto; use OpenRouter ou Grok CLI
+  nvidia        requer NIM Anthropic-compatible ou bridge
+EOF
+            exit 0
+            ;;
+
+        -h|--help)
+            usage
+            exit 0
+            ;;
+
+        *)
+            CLAUDE_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ "$REPORT_USAGE" -eq 1 ]; then
+    usage_report
+    exit 0
+fi
+
+[ -n "$USE" ] || {
+    usage
+    exit 1
+}
+
+have claude || die "claude não está no PATH"
+
+clear_anthropic_env
+
+#
+# Providers
+#
+
 start_copilot() {
-  load_credentials copilot
-  have npx || die "npx não está no PATH"; have node || die "node não está no PATH"; have curl || die "curl não está no PATH"
-  local port="${CLAUDE_COPILOT_PORT:-4141}" base_url log api_home selected_model pids
-  base_url="http://127.0.0.1:${port}"; log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-copilot.log"
-  api_home="$(resolve_copilot_api_home)"; selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-claude-sonnet-5}}"
-  pids="$(pgrep -f "copilot-api .*start .*--port ${port}" 2>/dev/null || true)"; [ -z "$pids" ] || { kill $pids 2>/dev/null || true; sleep .5; }
-  nohup npx --yes @jeffreycao/copilot-api@latest start --api-home "$api_home" --port "$port" >"$log" 2>&1 &
-  wait_http "${base_url}/v1/models" 50 || { tail -n 40 "$log" >&2 || true; die "gateway Copilot não iniciou"; }
-  export ANTHROPIC_BASE_URL="$base_url" ANTHROPIC_API_KEY="copilot-local"; set_all_models "$selected_model"
+    local port="${CLAUDE_COPILOT_PORT:-4141}"
+    local base_url="http://127.0.0.1:${port}"
+    local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-copilot.log"
+    local api_home
+    local config
+    local selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-claude-sonnet-5}}"
+
+    load_credentials copilot
+
+    have npx || die "npx não está no PATH"
+    have node || die "node não está no PATH"
+    have curl || die "curl não está no PATH"
+
+    api_home="$(resolve_copilot_api_home)"
+    config="${api_home}/config.json"
+
+    local debug_json
+
+    debug_json="$(
+        npx --yes @jeffreycao/copilot-api@latest debug --api-home "$api_home" --json 2>/dev/null || true
+    )"
+
+    if ! printf '%s' "$debug_json" | node -e '
+let input = "";
+process.stdin.on("data", c => input += c);
+process.stdin.on("end", () => {
+    try {
+        const start = input.indexOf("{");
+        if (start < 0) {
+            process.exit(1);
+        }
+
+        const x = JSON.parse(input.slice(start));
+        const token = x?.tokenExists === true;
+        const providers =
+            Array.isArray(x?.providers?.enabled)
+            ? x.providers.enabled.length
+            : 0;
+
+        process.exit(token || providers > 0 ? 0 : 1);
+    } catch {
+        process.exit(1);
+    }
+});
+'; then
+        echo "Nenhum provider configurado no copilot-api."
+        echo "Config esperado: $config"
+        echo "Se quiser manter tudo na mesma pasta, defina COPILOT_API_HOME em ${CREDENTIALS_DIR}/copilot.env."
+        echo
+        echo "Exemplo:"
+        echo "  npx @jeffreycao/copilot-api@latest auth login --provider copilot"
+        exit 1
+    fi
+
+    local pids
+    pids="$(pgrep -f "copilot-api .*start .*--port ${port}" 2>/dev/null || true)"
+
+    if [ -n "$pids" ]; then
+        kill $pids 2>/dev/null || true
+        sleep 0.5
+    fi
+
+    nohup npx --yes @jeffreycao/copilot-api@latest start --api-home "$api_home" \
+        --port "$port" \
+        >"$log" 2>&1 &
+
+    if ! wait_http "${base_url}/v1/models" 50; then
+        echo "Gateway Copilot não iniciou."
+        echo "Log: $log"
+        tail -n 40 "$log" 2>/dev/null || true
+        exit 1
+    fi
+
+    export ANTHROPIC_BASE_URL="$base_url"
+    export ANTHROPIC_API_KEY="copilot-local"
+
+    set_all_models "$selected_model"
 }
 
 start_codex() {
-  have claude-codex-proxy || die "claude-codex-proxy não está instalado"; have curl || die "curl não está no PATH"
-  local status; status="$(claude-codex-proxy accounts list 2>/dev/null || true)"; printf '%s' "$status" | grep -q 'No accounts configured' && die "nenhuma conta Codex configurada"
-  local port="${CLAUDE_CODEX_PORT:-8765}" base_url log selected_model pids
-  base_url="http://127.0.0.1:${port}"; log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-codex.log"; selected_model="${MODEL:-${CLAUDE_CODEX_MODEL:-claude-sonnet-5}}"
-  pids="$(pgrep -f 'claude-codex-proxy start' 2>/dev/null || true)"; [ -z "$pids" ] || { kill $pids 2>/dev/null || true; sleep .5; }
-  PORT="$port" nohup claude-codex-proxy start >"$log" 2>&1 &
-  wait_http "${base_url}/v1/models" 30 || { tail -n 40 "$log" >&2 || true; die "gateway Codex não iniciou"; }
-  export ANTHROPIC_BASE_URL="$base_url" ANTHROPIC_API_KEY="codex-local-proxy"; set_all_models "$selected_model"
+    local port="${CLAUDE_CODEX_PORT:-8765}"
+    local base_url="http://127.0.0.1:${port}"
+    local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-codex.log"
+    local selected_model="${MODEL:-${CLAUDE_CODEX_MODEL:-claude-sonnet-5}}"
+
+    have claude-codex-proxy ||
+        die "claude-codex-proxy não está instalado"
+
+    have curl || die "curl não está no PATH"
+    assert_codex_accounts
+
+    local pids
+    pids="$(pgrep -f "claude-codex-proxy start" 2>/dev/null || true)"
+
+    if [ -n "$pids" ]; then
+        kill $pids 2>/dev/null || true
+        sleep 0.5
+    fi
+
+    PORT="$port" nohup claude-codex-proxy start \
+        >"$log" 2>&1 &
+
+    if ! wait_http "${base_url}/v1/models" 30; then
+        echo "Gateway Codex não iniciou."
+        echo "Log: $log"
+        tail -n 40 "$log" 2>/dev/null || true
+        exit 1
+    fi
+
+    export ANTHROPIC_BASE_URL="$base_url"
+    export ANTHROPIC_API_KEY="codex-local-proxy"
+
+    set_all_models "$selected_model"
 }
 
 start_openrouter() {
-  load_credentials openrouter; : "${OPENROUTER_API_KEY:?OPENROUTER_API_KEY não definida}"
-  export ANTHROPIC_BASE_URL="https://openrouter.ai/api" ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY" ANTHROPIC_API_KEY=""
-  export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1 CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK=1 ENABLE_TOOL_SEARCH=true CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1
-  [ -z "$MODEL" ] || set_all_models "$MODEL"
+    load_credentials openrouter
+
+    : "${OPENROUTER_API_KEY:?OPENROUTER_API_KEY não definida}"
+
+    export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
+    export ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY"
+    export ANTHROPIC_API_KEY=""
+
+    export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
+    export CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK=1
+    export ENABLE_TOOL_SEARCH=true
+    export CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1
+
+    if [ -n "$MODEL" ]; then
+        set_all_models "$MODEL"
+    fi
 }
 
 start_kimi() {
-  load_credentials kimi; : "${KIMI_API_KEY:?KIMI_API_KEY não definida}"
-  export ANTHROPIC_BASE_URL="https://api.kimi.com/coding/" ANTHROPIC_API_KEY="$KIMI_API_KEY"
-  set_all_models "${MODEL:-k3}"
+    load_credentials kimi
+
+    : "${KIMI_API_KEY:?KIMI_API_KEY não definida}"
+
+    local selected_model="${MODEL:-k3-256k}"
+
+    export ANTHROPIC_BASE_URL="https://api.kimi.com/coding/"
+    export ANTHROPIC_API_KEY="$KIMI_API_KEY"
+
+    set_all_models "$selected_model"
 }
 
 start_grok() {
-  load_credentials grok; : "${GROK_API_KEY:?GROK_API_KEY não definida}"
-  die "xAI não é iniciado diretamente pelo Claude Code neste launcher; use Grok via OpenRouter ou um bridge compatível"
+    load_credentials grok
+
+    : "${GROK_API_KEY:?GROK_API_KEY não definida}"
+
+    cat >&2 <<'EOF'
+Grok direto não será iniciado pelo Claude Code.
+
+Motivo:
+  a xAI depreciou sua API Anthropic-compatible.
+
+Alternativas:
+
+  1. usar Grok através do OpenRouter:
+
+       alt-claude --use openrouter --model <modelo-xai>
+
+  2. usar o agente Grok nativo:
+
+       grok
+
+Não vou colocar um endpoint depreciado silenciosamente no alt-claude.
+EOF
+
+    exit 2
 }
 
 start_nvidia() {
-  load_credentials nvidia; : "${NVIDIA_API_KEY:?NVIDIA_API_KEY não definida}"
-  [ -n "${NVIDIA_ANTHROPIC_BASE_URL:-}" ] || die "NVIDIA_API_KEY está válida, mas o API Catalog é OpenAI-compatible; configure NVIDIA_ANTHROPIC_BASE_URL para um NIM/bridge Anthropic-compatible"
-  : "${NVIDIA_MODEL:?NVIDIA_MODEL não definida}"
-  export ANTHROPIC_BASE_URL="$NVIDIA_ANTHROPIC_BASE_URL" ANTHROPIC_API_KEY="nvidia-nim"
-  set_all_models "${MODEL:-$NVIDIA_MODEL}"
+    load_credentials nvidia
+
+    : "${NVIDIA_API_KEY:?NVIDIA_API_KEY não definida}"
+
+    if [ -z "${NVIDIA_ANTHROPIC_BASE_URL:-}" ]; then
+        cat >&2 <<'EOF'
+NVIDIA_API_KEY encontrada, mas nenhum endpoint Anthropic-compatible foi configurado.
+
+A chave do NVIDIA API Catalog, sozinha, não basta para o Claude Code.
+
+Se houver um NIM com /v1/messages, configure por exemplo:
+
+  NVIDIA_ANTHROPIC_BASE_URL="http://servidor:8000"
+  NVIDIA_MODEL="publisher/model"
+
+no arquivo nvidia.env.
+
+Caso contrário é necessário um bridge OpenAI -> Anthropic.
+EOF
+        exit 2
+    fi
+
+    : "${NVIDIA_MODEL:?NVIDIA_MODEL não definida}"
+
+    local selected_model="${MODEL:-$NVIDIA_MODEL}"
+
+    export ANTHROPIC_BASE_URL="$NVIDIA_ANTHROPIC_BASE_URL"
+    export ANTHROPIC_API_KEY="nvidia-nim"
+    export ANTHROPIC_CUSTOM_MODEL_OPTION="$selected_model"
+
+    set_all_models "$selected_model"
 }
 
-export CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1
-: "${ENABLE_CLAUDEAI_MCP_SERVERS:=0}"; export ENABLE_CLAUDEAI_MCP_SERVERS
-[ "${ALT_CLAUDE_NO_BARE:-0}" = 1 ] || CLAUDE_ARGS+=(--bare)
-
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --use) [ "$#" -ge 2 ] || die "--use requer provider"; USE="$2"; shift 2 ;;
-    --use=*) USE="${1#*=}"; shift ;;
-    --user) [ "$#" -ge 2 ] || die "--user requer provider"; USE="$2"; echo "Aviso: --user é alias de --use; prefira --use." >&2; shift 2 ;;
-    --user=*) USE="${1#*=}"; echo "Aviso: --user é alias de --use; prefira --use." >&2; shift ;;
-    --model) [ "$#" -ge 2 ] || die "--model requer modelo"; MODEL="$2"; shift 2 ;;
-    --model=*) MODEL="${1#*=}"; shift ;;
-    --yolo) CLAUDE_ARGS+=(--dangerously-skip-permissions); shift ;;
-    --usage) REPORT_USAGE=1; shift ;;
-    --list) printf '%s\n' 'copilot' 'codex' 'openrouter' 'kimi' 'grok' 'nvidia'; exit 0 ;;
-    -h|--help) usage; exit 0 ;;
-    *) CLAUDE_ARGS+=("$1"); shift ;;
-  esac
-done
-
-[ "$REPORT_USAGE" -eq 0 ] || { usage_report; exit 0; }
-[ -n "$USE" ] || { usage; exit 1; }
-have claude || die "claude não está no PATH"
-clear_anthropic_env
 case "$USE" in
-  copilot) start_copilot ;;
-  codex) start_codex ;;
-  openrouter) start_openrouter ;;
-  kimi) start_kimi ;;
-  grok) start_grok ;;
-  nvidia) start_nvidia ;;
-  *) die "provider desconhecido: $USE" ;;
+    copilot)
+        start_copilot
+        ;;
+
+    codex)
+        start_codex
+        ;;
+
+    openrouter)
+        start_openrouter
+        ;;
+
+    kimi)
+        start_kimi
+        ;;
+
+    grok)
+        start_grok
+        ;;
+
+    nvidia)
+        start_nvidia
+        ;;
+
+    *)
+        die "provider desconhecido: $USE"
+        ;;
 esac
+
 exec claude "${CLAUDE_ARGS[@]}"

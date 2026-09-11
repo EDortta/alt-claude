@@ -18,7 +18,7 @@ chmod +x "$TMP/fake-alt-claude"
 
 ALT_CLAUDE_INSTALL_DIR="$BIN_DIR" \
 ALT_CLAUDE_DATA_DIR="$DATA_DIR" \
-    "$ROOT/install.sh" >/dev/null
+    bash "$ROOT/install.sh" >/dev/null
 
 ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
 ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \

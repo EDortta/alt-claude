@@ -108,6 +108,12 @@ Then run:
 
 The installer generates `alt-claude-my-model`. No new argument parser or provider wrapper is required.
 
+Validate the OpenRouter catalog and zero-price status without running inference:
+
+```bash
+bash tools/check-profiles.sh
+```
+
 ## Direct provider usage
 
 ```bash
@@ -156,11 +162,12 @@ chmod 600 ~/.config/credentials/personal/ai/*.env
 
 ```bash
 bash tests/test-profiles.sh
+bash tools/check-profiles.sh
 ```
 
-The test verifies profile installation and exact forwarding of `--yolo` and `--resume`.
+The structural test verifies profile installation and exact forwarding of `--yolo` and `--resume`. The catalog check verifies that OpenRouter model IDs still exist and are still zero-cost.
 
-See also [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), and [docs/usage.md](docs/usage.md).
+See also [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), and [docs/usage.md](docs/usage.md).
 
 ## Design principles
 

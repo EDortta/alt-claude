@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROFILE_NAME="${1:-}"
+[[ -n "$PROFILE_NAME" ]] || {
+    echo "Uso: alt-claude-profile <perfil> [args do Claude Code...]" >&2
+    exit 2
+}
+shift
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_PROFILE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles"
+PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-$DEFAULT_PROFILE_DIR}"
+
+if [[ -r "$SELF_DIR/profiles/${PROFILE_NAME}.env" ]]; then
+    PROFILE_FILE="$SELF_DIR/profiles/${PROFILE_NAME}.env"
+elif [[ -r "$PROFILE_DIR/${PROFILE_NAME}.env" ]]; then
+    PROFILE_FILE="$PROFILE_DIR/${PROFILE_NAME}.env"
+else
+    echo "Erro: perfil '${PROFILE_NAME}' não encontrado." >&2
+    echo "Procurado em: $SELF_DIR/profiles e $PROFILE_DIR" >&2
+    exit 2
+fi
+
+# Perfis fazem parte do próprio projeto; são configuração declarativa confiável.
+# shellcheck disable=SC1090
+source "$PROFILE_FILE"
+
+: "${PROVIDER:?perfil sem PROVIDER: $PROFILE_FILE}"
+: "${MODEL:?perfil sem MODEL: $PROFILE_FILE}"
+
+ALT_CLAUDE_BIN="${ALT_CLAUDE_BIN:-alt-claude}"
+
+exec "$ALT_CLAUDE_BIN" \
+    --use "$PROVIDER" \
+    --model "$MODEL" \
+    "$@"

@@ -45,6 +45,16 @@ Experimental:
 
 Experimental means the integration is wired but still needs real repository tasks before being promoted to `active`.
 
+## Validation
+
+Validate all OpenRouter model IDs and zero-price status without spending inference tokens:
+
+```bash
+bash tools/check-profiles.sh
+```
+
+A missing model or a model whose prompt/completion price is no longer zero causes a non-zero exit status.
+
 ## Adding a profile
 
 Add one `.env` file to `profiles/` and rerun `./install.sh`. No new parser or wrapper implementation should be added.

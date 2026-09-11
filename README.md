@@ -1,45 +1,129 @@
 # alt-claude
 
-Unified launcher for running Claude Code against alternative model providers and gateways.
+Unified launcher for running Claude Code against alternative providers and model profiles.
 
-`alt-claude` keeps the Claude Code interface while selecting the backend with `--use`.
+The project has two layers:
 
-## Current providers
+- `alt-claude` handles providers, credentials and Claude Code integration;
+- `alt-claude-*` launchers are generated from declarative files in `profiles/`.
 
-- `copilot` — GitHub Copilot through `copilot-api`
-- `codex` — OpenAI Codex through `claude-codex-proxy`
-- `openrouter` — OpenRouter Anthropic-compatible endpoint
-- `kimi` — Kimi Anthropic-compatible endpoint
-- `grok` — credential health check; direct Claude Code use is currently disabled in the launcher
-- `nvidia` — credential health check; direct Claude Code use requires an Anthropic-compatible NIM endpoint or bridge
+That keeps `--yolo`, `--resume` and every future common flag consistent across all model shortcuts.
 
 ## Install
 
 ```bash
 git clone git@github.com:EDortta/alt-claude.git
 cd alt-claude
+git checkout development
 ./install.sh
 ```
 
-The installer places `alt-claude` and the included `alt-claude-*` shortcuts at
-`~/.local/bin/`. To use another destination, set `ALT_CLAUDE_INSTALL_DIR`:
+Default locations:
 
-```bash
-ALT_CLAUDE_INSTALL_DIR="$HOME/bin" ./install.sh
+```text
+~/.local/bin/alt-claude
+~/.local/bin/alt-claude-profile
+~/.local/bin/alt-claude-*
+~/.local/share/alt-claude/profiles/*.env
 ```
 
-## Basic usage
+Override with:
+
+```bash
+ALT_CLAUDE_INSTALL_DIR="$HOME/bin" \
+ALT_CLAUDE_DATA_DIR="$HOME/.local/share/alt-claude" \
+./install.sh
+```
+
+## Common flags
+
+Every generated `alt-claude-*` forwards its arguments to the same core launcher.
+
+```bash
+alt-claude-laguna --yolo
+alt-claude-nemotron --resume SESSION_ID
+alt-claude-north-mini-code --yolo --resume SESSION_ID
+```
+
+`--yolo` is translated by `alt-claude` to Claude Code's `--dangerously-skip-permissions`.
+
+`--resume SESSION_ID` is forwarded unchanged to Claude Code. Other unknown Claude Code options are forwarded as well.
+
+Use `--yolo` only in repositories and environments where autonomous command execution is acceptable.
+
+## Model profiles
+
+Active profiles:
+
+```text
+alt-claude-laguna
+alt-claude-nemotron
+alt-claude-north-mini-code
+```
+
+Experimental/free profiles:
+
+```text
+alt-claude-laguna-xs
+alt-claude-nemotron-lightning
+alt-claude-nex-pro
+alt-claude-nex-mini
+alt-claude-inkling-small
+alt-claude-free
+```
+
+All of them currently use OpenRouter. Free model availability, rate limits and routing can change without notice.
+
+The generic fallback:
+
+```bash
+alt-claude-free --yolo
+```
+
+uses `openrouter/free`, so the actual model can vary between executions.
+
+## Adding another model shortcut
+
+Create only one file:
+
+```text
+profiles/my-model.env
+```
+
+Example:
+
+```bash
+PROVIDER=openrouter
+MODEL=vendor/model:free
+DISPLAY_NAME="My Model"
+STATUS=experimental
+NOTES="Short operational note"
+```
+
+Then run:
+
+```bash
+./install.sh
+```
+
+The installer generates `alt-claude-my-model`. No new argument parser or provider wrapper is required.
+
+Validate the OpenRouter catalog and zero-price status without running inference:
+
+```bash
+bash tools/check-profiles.sh
+```
+
+## Direct provider usage
 
 ```bash
 alt-claude --use copilot
 alt-claude --use codex --yolo
 alt-claude --use openrouter --model <provider/model>
-alt-claude --use kimi --yolo
+alt-claude --use kimi
 ```
 
-`--user` is accepted as a compatibility alias for `--use`.
-
-Any unrecognized option is forwarded to Claude Code, so normal Claude arguments such as `--resume` continue to work.
+`--user` remains accepted as a compatibility alias for `--use`.
 
 ## Provider and credential health
 
@@ -47,20 +131,7 @@ Any unrecognized option is forwarded to Claude Code, so normal Claude arguments 
 alt-claude --usage
 ```
 
-This scans the configured providers, checks whether credentials are accepted, and reports usage where the provider exposes it through its API.
-
-Example:
-
-```text
-PROVEDOR     STATUS       USO MÊS           DETALHE
------------- ------------ ------------------ ----------------------------------------
-copilot      OK           N/D                autenticação local configurada
-codex        OK           N/D                conta(s) configurada(s)
-openrouter   OK           US$ 0.0000         total=US$ 0.0000, limite restante=N/D
-kimi         HTTP 401     -                  chave inválida/expirada ou conta incorreta
-grok         OK           N/D                uso histórico exige xAI Management API
-nvidia       OK           N/D                API pública não expõe uso por chave
-```
+This checks configured credentials and reports usage where the provider exposes it through its API.
 
 ## Credentials
 
@@ -70,7 +141,7 @@ Default credential root:
 ~/.config/credentials/personal/ai/
 ```
 
-Expected files:
+Typical files:
 
 ```text
 openrouter.env
@@ -87,18 +158,22 @@ chmod 700 ~/.config/credentials/personal/ai
 chmod 600 ~/.config/credentials/personal/ai/*.env
 ```
 
-See [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), and [docs/usage.md](docs/usage.md).
+## Tests
 
-## Landing page
+```bash
+bash tests/test-profiles.sh
+bash tools/check-profiles.sh
+```
 
-The GitHub Pages landing page lives in [`docs/`](docs/). Configure Pages to publish
-from the `main` branch and the `/docs` folder.
+The structural test verifies profile installation and exact forwarding of `--yolo` and `--resume`. The catalog check verifies that OpenRouter model IDs still exist and are still zero-cost.
+
+See also [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), and [docs/usage.md](docs/usage.md).
 
 ## Design principles
 
-- one launcher, not one script per provider;
-- credentials live outside the repository;
+- one execution core;
+- model variants are data, not copied scripts;
+- credentials stay outside the repository;
 - Claude Code remains the user-facing harness;
-- provider-specific logic stays isolated;
-- health checks should not require an inference call when a non-billable endpoint exists;
-- never invent usage data when a provider does not expose it.
+- common flags are inherited automatically by every profile;
+- provider/model health data must not be invented when an API does not expose it.

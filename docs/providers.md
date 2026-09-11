@@ -1,65 +1,16 @@
 # Providers
 
-## Copilot
+`alt-claude` keeps provider/authentication concerns separate from model profiles.
 
-Uses `@jeffreycao/copilot-api` as a local Anthropic-compatible gateway.
+Current provider adapters:
 
-```bash
-alt-claude --use copilot --yolo
-```
+- `copilot` — GitHub Copilot through `copilot-api`;
+- `codex` — OpenAI Codex through `claude-codex-proxy`;
+- `openrouter` — Anthropic-compatible OpenRouter endpoint;
+- `kimi` — Anthropic-compatible Kimi endpoint when a valid Kimi Code key is available;
+- `grok` — credential health check; direct Claude Code path is intentionally disabled until a supported Anthropic-compatible route is available;
+- `nvidia` — credential health check; direct use requires an Anthropic-compatible NIM endpoint or a bridge.
 
-## Codex
+Model-specific shortcuts do not add provider logic. They declare `PROVIDER` and `MODEL` in `profiles/*.env` and delegate to the core launcher.
 
-Uses `claude-codex-proxy` as a local Anthropic-compatible gateway.
-
-```bash
-alt-claude --use codex --yolo
-```
-
-## OpenRouter
-
-Uses the Anthropic-compatible OpenRouter endpoint directly.
-
-```bash
-alt-claude --use openrouter --model <provider/model>
-```
-
-This is the preferred path for experimenting with free or low-cost models because the provider/model can be changed without changing Claude Code.
-
-## Kimi
-
-Uses Kimi's native Anthropic Messages-compatible endpoint:
-
-```text
-https://api.kimi.com/coding/
-```
-
-```bash
-alt-claude --use kimi
-```
-
-The API key must belong to Kimi Code access. A normal Kimi/Open Platform key may return HTTP 401 on the coding endpoint. The default model is `k3`.
-
-## Grok / xAI
-
-The key can be health-checked with `alt-claude --usage`, but direct Claude Code launch is intentionally disabled because the xAI API path used here is not treated as a drop-in Anthropic Messages endpoint.
-
-Use Grok through OpenRouter or add an explicit bridge.
-
-## NVIDIA
-
-`NVIDIA_API_KEY` can be validated against the NVIDIA API Catalog. The catalog endpoint is OpenAI-compatible, so the launcher does not pretend it is directly usable by Claude Code.
-
-Direct launch becomes available when `nvidia.env` provides an Anthropic-compatible NIM or bridge:
-
-```bash
-NVIDIA_API_KEY="..."
-NVIDIA_ANTHROPIC_BASE_URL="http://host:8000"
-NVIDIA_MODEL="publisher/model"
-```
-
-Then:
-
-```bash
-alt-claude --use nvidia --yolo
-```
+For OpenRouter model aliases and their lifecycle, see [profiles.md](profiles.md).

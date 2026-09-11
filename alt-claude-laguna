@@ -1,3 +1,0 @@
-alt-claude --use openrouter \
-  --model poolside/laguna-s-2.1:free \
-  --yolo

@@ -1,3 +1,0 @@
-alt-claude --use openrouter \
-  --model cohere/north-mini-code:free \
-  --yolo

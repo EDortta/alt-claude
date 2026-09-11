@@ -49,8 +49,10 @@ openrouter_free_preflight() {
         [[ -n "${OPENROUTER_API_KEY:-}" ]] || exit 1
 
         command -v curl >/dev/null 2>&1 || exit 1
+        command -v python3 >/dev/null 2>&1 || exit 1
 
-        local payload status
+        local payload status tmp
+        tmp="${TMPDIR:-/tmp}/alt-claude-openrouter-preflight.$$"
         payload="$(python3 - "$MODEL" <<'PY'
 import json, sys
 print(json.dumps({
@@ -62,7 +64,7 @@ print(json.dumps({
 PY
 )"
 
-        status="$(curl -sS -o /tmp/alt-claude-openrouter-preflight.$$ \
+        status="$(curl -sS -o "$tmp" \
             -w '%{http_code}' \
             --connect-timeout 8 --max-time 20 \
             https://openrouter.ai/api/v1/chat/completions \
@@ -70,13 +72,15 @@ PY
             -H 'Content-Type: application/json' \
             --data "$payload" 2>/dev/null || true)"
 
-        rm -f /tmp/alt-claude-openrouter-preflight.$$ || true
+        rm -f "$tmp" || true
         [[ "$status" == "200" ]]
     )
 }
 
 fallback_provider() {
     local provider="$1"
+    shift
+
     command -v "$ALT_CLAUDE_BIN" >/dev/null 2>&1 || return 1
 
     echo "alt-claude: OpenRouter free indisponível; usando fallback '${provider}'." >&2

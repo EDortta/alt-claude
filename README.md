@@ -14,7 +14,6 @@ That keeps `--yolo`, `--resume` and every future common flag consistent across a
 ```bash
 git clone git@github.com:EDortta/alt-claude.git
 cd alt-claude
-git checkout development
 ./install.sh
 ```
 
@@ -72,15 +71,29 @@ alt-claude-inkling-small
 alt-claude-free
 ```
 
-All of them currently use OpenRouter. Free model availability, rate limits and routing can change without notice.
+The named free profiles currently try OpenRouter first. Before Claude Code starts, `alt-claude-profile` performs a one-token free preflight against the selected model. If OpenRouter rejects the request because the free route is unavailable, rate-limited or requires credit, the launcher falls back to already-configured subscription providers in this order:
 
-The generic fallback:
+```text
+codex -> copilot
+```
+
+The fallback is explicit on stderr and never silently switches to a paid API key. The selected model necessarily changes when fallback happens, but `--yolo`, `--resume` and other Claude Code arguments are preserved.
+
+To disable automatic fallback for diagnostics:
+
+```bash
+ALT_CLAUDE_NO_FALLBACK=1 alt-claude-nemotron --yolo
+```
+
+The generic free route:
 
 ```bash
 alt-claude-free --yolo
 ```
 
-uses `openrouter/free`, so the actual model can vary between executions.
+uses `openrouter/free` when the free route is available and otherwise follows the same fallback policy.
+
+Free model availability, quotas and routing can change without notice.
 
 ## Adding another model shortcut
 
@@ -165,7 +178,7 @@ bash tests/test-profiles.sh
 bash tools/check-profiles.sh
 ```
 
-The structural test verifies profile installation and exact forwarding of `--yolo` and `--resume`. The catalog check verifies that OpenRouter model IDs still exist and are still zero-cost.
+The structural test verifies profile installation, exact forwarding of `--yolo` and `--resume`, and the OpenRouter-free-to-Codex fallback path. The catalog check verifies that OpenRouter model IDs still exist and are still zero-cost.
 
 See also [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), and [docs/usage.md](docs/usage.md).
 
@@ -176,4 +189,5 @@ See also [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/pr
 - credentials stay outside the repository;
 - Claude Code remains the user-facing harness;
 - common flags are inherited automatically by every profile;
+- free aliases never fall silently into pay-as-you-go APIs;
 - provider/model health data must not be invented when an API does not expose it.

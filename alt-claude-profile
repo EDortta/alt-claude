@@ -11,6 +11,7 @@ shift
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_PROFILE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles"
 PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-$DEFAULT_PROFILE_DIR}"
+CREDENTIALS_DIR="${ALT_CLAUDE_CREDENTIALS_DIR:-$HOME/.config/credentials/personal/ai}"
 
 if [[ -r "$SELF_DIR/profiles/${PROFILE_NAME}.env" ]]; then
     PROFILE_FILE="$SELF_DIR/profiles/${PROFILE_NAME}.env"
@@ -30,6 +31,94 @@ source "$PROFILE_FILE"
 : "${MODEL:?perfil sem MODEL: $PROFILE_FILE}"
 
 ALT_CLAUDE_BIN="${ALT_CLAUDE_BIN:-alt-claude}"
+
+openrouter_free_preflight() {
+    [[ "$PROVIDER" == "openrouter" ]] || return 0
+    [[ "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ]] || return 0
+    [[ "${ALT_CLAUDE_NO_FALLBACK:-0}" != "1" ]] || return 0
+
+    local cred_file="${CREDENTIALS_DIR}/openrouter.env"
+    [[ -r "$cred_file" ]] || return 1
+
+    (
+        set +u
+        set -a
+        # shellcheck disable=SC1090
+        source "$cred_file"
+        set +a
+        [[ -n "${OPENROUTER_API_KEY:-}" ]] || exit 1
+
+        command -v curl >/dev/null 2>&1 || exit 1
+        command -v python3 >/dev/null 2>&1 || exit 1
+
+        local payload status tmp
+        tmp="${TMPDIR:-/tmp}/alt-claude-openrouter-preflight.$$"
+        payload="$(python3 - "$MODEL" <<'PY'
+import json, sys
+print(json.dumps({
+    "model": sys.argv[1],
+    "messages": [{"role": "user", "content": "Reply only: OK"}],
+    "max_tokens": 1,
+    "temperature": 0,
+}))
+PY
+)"
+
+        status="$(curl -sS -o "$tmp" \
+            -w '%{http_code}' \
+            --connect-timeout 8 --max-time 20 \
+            https://openrouter.ai/api/v1/chat/completions \
+            -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
+            -H 'Content-Type: application/json' \
+            --data "$payload" 2>/dev/null || true)"
+
+        rm -f "$tmp" || true
+        [[ "$status" == "200" ]]
+    )
+}
+
+fallback_provider() {
+    local provider="$1"
+    shift
+
+    command -v "$ALT_CLAUDE_BIN" >/dev/null 2>&1 || return 1
+
+    echo "alt-claude: OpenRouter free indisponível; usando fallback '${provider}'." >&2
+    echo "alt-claude: o modelo mudou. Nenhuma API paga será usada silenciosamente." >&2
+    exec "$ALT_CLAUDE_BIN" --use "$provider" "$@"
+}
+
+if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ) ]]; then
+    if ! openrouter_free_preflight; then
+        if [[ "${ALT_CLAUDE_NO_FALLBACK:-0}" == "1" ]]; then
+            echo "Erro: OpenRouter free indisponível e fallback desabilitado." >&2
+            exit 75
+        fi
+
+        IFS=',' read -r -a fallbacks <<< "${FALLBACK_PROVIDERS:-codex,copilot}"
+        for provider in "${fallbacks[@]}"; do
+            provider="${provider//[[:space:]]/}"
+            [[ -n "$provider" ]] || continue
+
+            case "$provider" in
+                codex)
+                    if command -v claude-codex-proxy >/dev/null 2>&1; then
+                        fallback_provider codex "$@"
+                    fi
+                    ;;
+                copilot)
+                    if command -v npx >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
+                        fallback_provider copilot "$@"
+                    fi
+                    ;;
+            esac
+        done
+
+        echo "Erro: OpenRouter free indisponível e nenhum fallback local configurado está utilizável." >&2
+        echo "Tente diretamente: alt-claude --use codex --yolo" >&2
+        exit 75
+    fi
+fi
 
 exec "$ALT_CLAUDE_BIN" \
     --use "$PROVIDER" \

@@ -23,7 +23,6 @@ else
     exit 2
 fi
 
-# Perfis fazem parte do próprio projeto; são configuração declarativa confiável.
 # shellcheck disable=SC1090
 source "$PROFILE_FILE"
 
@@ -31,6 +30,60 @@ source "$PROFILE_FILE"
 : "${MODEL:?perfil sem MODEL: $PROFILE_FILE}"
 
 ALT_CLAUDE_BIN="${ALT_CLAUDE_BIN:-alt-claude}"
+COMPACTOR="${ALT_CLAUDE_COMPACTOR:-$SELF_DIR/alt-claude-session-compact}"
+
+# Best-effort proactive compaction. Claude Code has had regressions around this
+# knob, so a second, deterministic guard is applied before --resume below.
+if [[ -n "${AUTO_COMPACT_PCT:-}" ]]; then
+    export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE="$AUTO_COMPACT_PCT"
+fi
+
+resume_id_from_args() {
+    local prev=""
+    local arg
+    for arg in "$@"; do
+        if [[ "$prev" == "--resume" || "$prev" == "-r" ]]; then
+            printf '%s\n' "$arg"
+            return 0
+        fi
+        case "$arg" in
+            --resume=*) printf '%s\n' "${arg#*=}"; return 0 ;;
+            -r=*) printf '%s\n' "${arg#*=}"; return 0 ;;
+        esac
+        prev="$arg"
+    done
+    return 1
+}
+
+context_resume_guard() {
+    [[ -n "${SAFE_CONTEXT_TOKENS:-}" ]] || return 0
+    [[ "${ALT_CLAUDE_ALLOW_OVERSIZE_RESUME:-0}" != "1" ]] || return 0
+    [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+
+    local sid=""
+    sid="$(resume_id_from_args "$@" 2>/dev/null || true)"
+    [[ -n "$sid" ]] || return 0
+
+    local status=0 output=""
+    set +e
+    output="$(python3 "$COMPACTOR" "$sid" --status --max-tokens "$SAFE_CONTEXT_TOKENS" 2>&1)"
+    status=$?
+    set -e
+
+    if [[ $status -eq 75 ]]; then
+        echo "alt-claude: sessão $sid excede a margem segura de ${SAFE_CONTEXT_TOKENS} tokens para '$PROFILE_NAME'." >&2
+        [[ -n "${CONTEXT_WINDOW:-}" ]] && echo "alt-claude: janela declarada do perfil: ${CONTEXT_WINDOW} tokens." >&2
+        echo "alt-claude: $output" >&2
+        echo "alt-claude: gere um handoff offline e inicie uma sessão nova:" >&2
+        echo "  alt-claude compact $sid" >&2
+        echo "  alt-claude --profile $PROFILE_NAME --yolo \"Leia claude-handoff-$sid.md e continue o trabalho.\"" >&2
+        echo "Para forçar o resume mesmo assim: ALT_CLAUDE_ALLOW_OVERSIZE_RESUME=1 ..." >&2
+        exit 75
+    elif [[ $status -ne 0 && $status -ne 2 ]]; then
+        echo "alt-claude: aviso: não foi possível medir contexto da sessão $sid: $output" >&2
+    fi
+}
 
 openrouter_free_preflight() {
     [[ "$PROVIDER" == "openrouter" ]] || return 0
@@ -47,7 +100,6 @@ openrouter_free_preflight() {
         source "$cred_file"
         set +a
         [[ -n "${OPENROUTER_API_KEY:-}" ]] || exit 1
-
         command -v curl >/dev/null 2>&1 || exit 1
         command -v python3 >/dev/null 2>&1 || exit 1
 
@@ -63,15 +115,10 @@ print(json.dumps({
 }))
 PY
 )"
-
-        status="$(curl -sS -o "$tmp" \
-            -w '%{http_code}' \
-            --connect-timeout 8 --max-time 20 \
+        status="$(curl -sS -o "$tmp" -w '%{http_code}' --connect-timeout 8 --max-time 20 \
             https://openrouter.ai/api/v1/chat/completions \
             -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
-            -H 'Content-Type: application/json' \
-            --data "$payload" 2>/dev/null || true)"
-
+            -H 'Content-Type: application/json' --data "$payload" 2>/dev/null || true)"
         rm -f "$tmp" || true
         [[ "$status" == "200" ]]
     )
@@ -80,13 +127,13 @@ PY
 fallback_provider() {
     local provider="$1"
     shift
-
     command -v "$ALT_CLAUDE_BIN" >/dev/null 2>&1 || return 1
-
     echo "alt-claude: OpenRouter free indisponível; usando fallback '${provider}'." >&2
     echo "alt-claude: o modelo mudou. Nenhuma API paga será usada silenciosamente." >&2
     exec "$ALT_CLAUDE_BIN" --use "$provider" "$@"
 }
+
+context_resume_guard "$@"
 
 if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ) ]]; then
     if ! openrouter_free_preflight; then
@@ -94,33 +141,23 @@ if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "open
             echo "Erro: OpenRouter free indisponível e fallback desabilitado." >&2
             exit 75
         fi
-
         IFS=',' read -r -a fallbacks <<< "${FALLBACK_PROVIDERS:-codex,copilot}"
         for provider in "${fallbacks[@]}"; do
             provider="${provider//[[:space:]]/}"
             [[ -n "$provider" ]] || continue
-
             case "$provider" in
                 codex)
-                    if command -v claude-codex-proxy >/dev/null 2>&1; then
-                        fallback_provider codex "$@"
-                    fi
+                    command -v claude-codex-proxy >/dev/null 2>&1 && fallback_provider codex "$@"
                     ;;
                 copilot)
-                    if command -v npx >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
-                        fallback_provider copilot "$@"
-                    fi
+                    command -v npx >/dev/null 2>&1 && command -v node >/dev/null 2>&1 && fallback_provider copilot "$@"
                     ;;
             esac
         done
-
         echo "Erro: OpenRouter free indisponível e nenhum fallback local configurado está utilizável." >&2
         echo "Tente diretamente: alt-claude --use codex --yolo" >&2
         exit 75
     fi
 fi
 
-exec "$ALT_CLAUDE_BIN" \
-    --use "$PROVIDER" \
-    --model "$MODEL" \
-    "$@"
+exec "$ALT_CLAUDE_BIN" --use "$PROVIDER" --model "$MODEL" "$@"

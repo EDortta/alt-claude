@@ -5,9 +5,11 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CORE="${ALT_CLAUDE_CORE:-$SELF_DIR/alt-claude-core}"
 PROFILE_BIN="${ALT_CLAUDE_PROFILE_BIN:-$SELF_DIR/alt-claude-profile}"
 COMPACTOR="${ALT_CLAUDE_COMPACTOR:-$SELF_DIR/alt-claude-session-compact}"
+POLICY_BIN="${ALT_CLAUDE_POLICY_BIN:-$SELF_DIR/alt-claude-policy}"
 PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles}"
 
 [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || COMPACTOR="$SELF_DIR/tools/session-compact.py"
+[[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || POLICY_BIN="$SELF_DIR/tools/project-policy.py"
 [[ -d "$SELF_DIR/profiles" ]] && PROFILE_DIR="$SELF_DIR/profiles"
 
 usage_extra() {
@@ -16,11 +18,51 @@ alt-claude unified commands:
   alt-claude --profile NAME [--yolo] [--resume ID] [claude args]
   alt-claude profiles
   alt-claude compact SESSION_ID [-o handoff.md]
+  alt-claude policy init [standard|sensitive]
+  alt-claude policy show
+  alt-claude policy deny profile NAME
+  alt-claude policy deny provider NAME
+  alt-claude policy allow profile NAME
 
 Compatibility shortcuts such as alt-claude-north-mini-code still work.
 Legacy provider mode remains available:
   alt-claude --use PROVIDER [options]
 EOF
+}
+
+show_profiles_group() {
+  local wanted="$1" title="$2" found=0
+  shopt -s nullglob
+  echo
+  echo "$title"
+  printf '%-24s %-12s %-12s %-12s %s\n' "PROFILE" "STATUS" "CONTEXT" "SAFE" "MODEL"
+  printf '%-24s %-12s %-12s %-12s %s\n' "------------------------" "------------" "------------" "------------" "---------------------------------------------"
+  for f in "$PROFILE_DIR"/*.env; do
+    unset MODEL STATUS CONTEXT_WINDOW SAFE_CONTEXT_TOKENS DISPLAY_NAME PRIVACY
+    # shellcheck disable=SC1090
+    source "$f"
+    privacy="${PRIVACY:-review}"
+    [[ "$privacy" == "$wanted" ]] || continue
+    name="$(basename "$f" .env)"
+    printf '%-24s %-12s %-12s %-12s %s\n' "$name" "${STATUS:-unknown}" "${CONTEXT_WINDOW:-N/D}" "${SAFE_CONTEXT_TOKENS:-N/D}" "${MODEL:-N/D}"
+    found=1
+  done
+  (( found == 1 )) || echo "(nenhum perfil nesta classe)"
+}
+
+check_direct_provider_policy() {
+  local provider="" prev=""
+  for arg in "$@"; do
+    if [[ "$prev" == "--use" || "$prev" == "--user" ]]; then provider="$arg"; break; fi
+    case "$arg" in
+      --use=*|--user=*) provider="${arg#*=}"; break ;;
+    esac
+    prev="$arg"
+  done
+  [[ -n "$provider" ]] || return 0
+  [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || return 0
+  # Direct-provider privacy is not inferred; project deny_provider still applies.
+  python3 "$POLICY_BIN" check --provider "$provider" --privacy sensitive_ok
 }
 
 case "${1:-}" in
@@ -29,16 +71,17 @@ case "${1:-}" in
     [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || { echo "Erro: compactador offline não encontrado: $COMPACTOR" >&2; exit 2; }
     exec python3 "$COMPACTOR" "$@"
     ;;
+  policy)
+    shift
+    [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || { echo "Erro: policy engine não encontrado: $POLICY_BIN" >&2; exit 2; }
+    exec python3 "$POLICY_BIN" "$@"
+    ;;
   profiles)
-    shopt -s nullglob
-    printf '%-24s %-12s %-12s %-12s %s\n' "PROFILE" "STATUS" "CONTEXT" "SAFE" "MODEL"
-    for f in "$PROFILE_DIR"/*.env; do
-      unset MODEL STATUS CONTEXT_WINDOW SAFE_CONTEXT_TOKENS DISPLAY_NAME
-      # shellcheck disable=SC1090
-      source "$f"
-      name="$(basename "$f" .env)"
-      printf '%-24s %-12s %-12s %-12s %s\n' "$name" "${STATUS:-unknown}" "${CONTEXT_WINDOW:-N/D}" "${SAFE_CONTEXT_TOKENS:-N/D}" "${MODEL:-N/D}"
-    done
+    show_profiles_group sensitive_ok "=== ADEQUADOS PARA PROJETOS SENSÍVEIS (verificados pelo alt-claude) ==="
+    show_profiles_group review "=== REVISAR PRIVACIDADE ANTES DE USAR CÓDIGO SENSÍVEL ==="
+    show_profiles_group public_only "=== NÃO USAR COM CÓDIGO SENSÍVEL / PRIVADO ==="
+    echo
+    echo "Classes: sensitive_ok = política verificada; review = termos/roteamento exigem revisão; public_only = bloqueie em projetos privados."
     exit 0
     ;;
   --profile)
@@ -56,6 +99,7 @@ case "${1:-}" in
     exec "$CORE" --help
     ;;
   *)
+    check_direct_provider_policy "$@"
     exec "$CORE" "$@"
     ;;
 esac

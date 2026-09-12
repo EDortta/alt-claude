@@ -12,7 +12,7 @@ CREDS="$TMP/credentials"
 TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
-python3 -m py_compile "$ROOT/tools/session-compact.py"
+python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py"
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash
@@ -21,6 +21,15 @@ EOF
 chmod +x "$TMP/fake-alt-claude"
 
 ALT_CLAUDE_INSTALL_DIR="$BIN_DIR" ALT_CLAUDE_DATA_DIR="$DATA_DIR" bash "$ROOT/install.sh" >/dev/null
+
+# Unified help must cover the whole product, not just the legacy core.
+help="$($BIN_DIR/alt-claude --help)"
+grep -q 'OPÇÕES COMUNS' <<<"$help"
+grep -q 'POLÍTICA POR PROJETO' <<<"$help"
+grep -q 'CONTEXTO E COMPACTAÇÃO' <<<"$help"
+grep -q 'AJUDA POR ASSUNTO' <<<"$help"
+$BIN_DIR/alt-claude help policy | grep -q 'policy init sensitive'
+$BIN_DIR/alt-claude help compact | grep -q 'handoff Markdown OFFLINE'
 
 # Normal forwarding: no real session exists, so resume guard stays non-blocking.
 ALT_CLAUDE_NO_FALLBACK=1 \
@@ -98,16 +107,18 @@ grep -q 'Claude Code session handoff' "$TMP/handoff.md"
 grep -q '/tmp/project' "$TMP/handoff.md"
 grep -q 'development' "$TMP/handoff.md"
 
-# Every profile declares a context policy.
+# Every profile declares context AND privacy policy explicitly.
 for profile in "$ROOT"/profiles/*.env; do
     (
-        unset PROVIDER MODEL DISPLAY_NAME STATUS CONTEXT_WINDOW SAFE_CONTEXT_TOKENS AUTO_COMPACT_PCT
+        unset PROVIDER MODEL DISPLAY_NAME STATUS PRIVACY CONTEXT_WINDOW SAFE_CONTEXT_TOKENS AUTO_COMPACT_PCT
         # shellcheck disable=SC1090
         source "$profile"
         : "${PROVIDER:?PROVIDER ausente em $profile}"
         : "${MODEL:?MODEL ausente em $profile}"
         : "${DISPLAY_NAME:?DISPLAY_NAME ausente em $profile}"
         : "${STATUS:?STATUS ausente em $profile}"
+        : "${PRIVACY:?PRIVACY ausente em $profile}"
+        case "$PRIVACY" in sensitive_ok|review|public_only) ;; *) echo "PRIVACY inválido: $PRIVACY em $profile" >&2; exit 1 ;; esac
         : "${CONTEXT_WINDOW:?CONTEXT_WINDOW ausente em $profile}"
         : "${SAFE_CONTEXT_TOKENS:?SAFE_CONTEXT_TOKENS ausente em $profile}"
         : "${AUTO_COMPACT_PCT:?AUTO_COMPACT_PCT ausente em $profile}"
@@ -119,7 +130,28 @@ for launcher in laguna nemotron north-mini-code laguna-xs nemotron-lightning nex
     [[ -x "$BIN_DIR/alt-claude-$launcher" ]] || { echo "Falha: launcher ausente: alt-claude-$launcher" >&2; exit 1; }
 done
 
-# Unified entry point exists and lists profiles.
-ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" "$BIN_DIR/alt-claude" profiles | grep -q 'north-mini-code'
+# Unified entry point groups privacy classes visibly.
+profiles="$($BIN_DIR/alt-claude profiles)"
+grep -q 'REVISAR PRIVACIDADE' <<<"$profiles"
+grep -q 'NÃO USAR COM CÓDIGO SENSÍVEL' <<<"$profiles"
+grep -q 'north-mini-code' <<<"$profiles"
+grep -q 'inkling' <<<"$profiles"
 
-echo "OK: unified launcher, perfis, --yolo, --resume, context guard, offline compact e fallback"
+# Policy engine uses a declarative project file and blocks REVIEW in sensitive mode.
+POLICY_PROJECT="$TMP/policy-project"
+mkdir -p "$POLICY_PROJECT"
+git -C "$POLICY_PROJECT" init -q
+(
+  cd "$POLICY_PROJECT"
+  "$BIN_DIR/alt-claude" policy init sensitive >/dev/null
+  grep -q '^mode=sensitive$' .alt-claude/config
+  grep -q '^deny_privacy=review,public_only$' .alt-claude/config
+  set +e
+  python3 "$BIN_DIR/alt-claude-policy" check --profile north-mini-code --provider openrouter --privacy review >/dev/null 2>"$TMP/policy.err"
+  st=$?
+  set -e
+  [[ $st -eq 77 ]] || { echo "Falha: política sensível deveria bloquear REVIEW" >&2; exit 1; }
+  grep -q 'BLOCKED by project policy' "$TMP/policy.err"
+)
+
+echo "OK: help, perfis, privacy policy, --yolo, --resume, context guard, offline compact e fallback"

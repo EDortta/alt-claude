@@ -1,13 +1,17 @@
 # alt-claude
 
-Unified launcher for running Claude Code against alternative providers and model profiles.
+Unified Claude Code launcher for alternative providers and model profiles.
 
-The project has two layers:
+The preferred interface is now a single command:
 
-- `alt-claude` handles providers, credentials and Claude Code integration;
-- `alt-claude-*` launchers are generated from declarative files in `profiles/`.
+```bash
+alt-claude --profile north-mini-code --yolo
+alt-claude --profile nemotron --resume SESSION_ID
+alt-claude profiles
+alt-claude compact SESSION_ID
+```
 
-That keeps `--yolo`, `--resume` and every future common flag consistent across all model shortcuts.
+Compatibility launchers such as `alt-claude-north-mini-code` remain installed and simply delegate to the same core.
 
 ## Install
 
@@ -17,159 +21,166 @@ cd alt-claude
 ./install.sh
 ```
 
-Default locations:
-
-```text
-~/.local/bin/alt-claude
-~/.local/bin/alt-claude-profile
-~/.local/bin/alt-claude-*
-~/.local/share/alt-claude/profiles/*.env
-```
-
-Override with:
-
-```bash
-ALT_CLAUDE_INSTALL_DIR="$HOME/bin" \
-ALT_CLAUDE_DATA_DIR="$HOME/.local/share/alt-claude" \
-./install.sh
-```
+The installer places the dispatcher, provider core, profile dispatcher and offline session compactor under `~/.local/bin/`, and copies declarative profiles to `~/.local/share/alt-claude/profiles/`.
 
 ## Common flags
 
-Every generated `alt-claude-*` forwards its arguments to the same core launcher.
+All profiles share the same flag path:
 
 ```bash
-alt-claude-laguna --yolo
-alt-claude-nemotron --resume SESSION_ID
-alt-claude-north-mini-code --yolo --resume SESSION_ID
+alt-claude --profile north-mini-code --yolo
+alt-claude --profile north-mini-code --resume SESSION_ID
+alt-claude --profile north-mini-code --yolo --resume SESSION_ID
 ```
 
-`--yolo` is translated by `alt-claude` to Claude Code's `--dangerously-skip-permissions`.
+`--yolo` becomes Claude Code's `--dangerously-skip-permissions`. `--resume` and unknown Claude Code flags are forwarded unchanged.
 
-`--resume SESSION_ID` is forwarded unchanged to Claude Code. Other unknown Claude Code options are forwarded as well.
+## Context guard
 
-Use `--yolo` only in repositories and environments where autonomous command execution is acceptable.
-
-## Model profiles
-
-Active profiles:
+Each model profile declares:
 
 ```text
-alt-claude-laguna
-alt-claude-nemotron
-alt-claude-north-mini-code
+CONTEXT_WINDOW
+SAFE_CONTEXT_TOKENS
+AUTO_COMPACT_PCT
 ```
 
-Experimental/free profiles:
+`AUTO_COMPACT_PCT` is exported through `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` as a best-effort early-compaction hint. Because Claude Code versions can change how auto-compaction behaves, `alt-claude` also has a deterministic guard for `--resume`.
+
+Before resuming a known local session, the launcher reads its JSONL transcript offline. If the latest observed context is already beyond the profile's safe threshold, it refuses a request that is likely to fail at the provider and tells you to create a handoff instead.
+
+For example, North Mini Code uses a 256K window but reserves substantial space for tools and output:
 
 ```text
-alt-claude-laguna-xs
-alt-claude-nemotron-lightning
-alt-claude-nex-pro
-alt-claude-nex-mini
-alt-claude-inkling-small
-alt-claude-free
+CONTEXT_WINDOW=256000
+SAFE_CONTEXT_TOKENS=180000
+AUTO_COMPACT_PCT=65
 ```
 
-The named free profiles currently try OpenRouter first. Before Claude Code starts, `alt-claude-profile` performs a one-token free preflight against the selected model. If OpenRouter rejects the request because the free route is unavailable, rate-limited or requires credit, the launcher falls back to already-configured subscription providers in this order:
+To bypass the guard deliberately:
+
+```bash
+ALT_CLAUDE_ALLOW_OVERSIZE_RESUME=1 alt-claude --profile north-mini-code --resume SESSION_ID
+```
+
+## Offline session compact / recovery
+
+When `/compact` can no longer fit inside the model's own context, generate a new-session handoff locally:
+
+```bash
+alt-claude compact SESSION_ID
+```
+
+It reads Claude Code's local session JSONL, makes no model/API call, and writes:
+
+```text
+claude-handoff-SESSION_ID.md
+```
+
+The handoff contains available repository metadata, frequently touched files, recent shell commands, recent dialogue and a continuation instruction. It is intentionally a lossy recovery artifact, not an LLM semantic summary; the current repository/filesystem remains authoritative.
+
+Then start fresh, for example:
+
+```bash
+alt-claude --profile north-mini-code --yolo \
+  "Leia claude-handoff-SESSION_ID.md, confira o estado atual do repositório e continue o trabalho."
+```
+
+You can inspect the locally observed context without generating a handoff:
+
+```bash
+alt-claude-session-compact SESSION_ID --status
+```
+
+## Profiles
+
+List the installed catalog and its context budgets:
+
+```bash
+alt-claude profiles
+```
+
+Current active profiles include:
+
+```text
+north-mini-code
+laguna
+nemotron
+```
+
+Additional experimental profiles include:
+
+```text
+laguna-xs
+nemotron-lightning
+nex-pro
+nex-mini
+inkling-small
+inkling
+deepseek-v4-flash
+glm-5.3-flash
+free
+```
+
+The experimental models are deliberately not promoted to active merely because their endpoints exist; they still need repeated real software-engineering tasks.
+
+The free Thinking Machines Inkling endpoints may have data-retention/model-improvement terms different from ordinary paid endpoints. Review those terms before sending private source code.
+
+## Free-route fallback
+
+Named free profiles try OpenRouter first. A minimal preflight detects exhausted/blocked free routes. If unavailable, `alt-claude` falls back explicitly to already-configured subscription providers:
 
 ```text
 codex -> copilot
 ```
 
-The fallback is explicit on stderr and never silently switches to a paid API key. The selected model necessarily changes when fallback happens, but `--yolo`, `--resume` and other Claude Code arguments are preserved.
+The fallback is announced and never silently selects a pay-as-you-go API. The model necessarily changes, while `--yolo`, `--resume` and other Claude arguments are preserved.
 
-To disable automatic fallback for diagnostics:
-
-```bash
-ALT_CLAUDE_NO_FALLBACK=1 alt-claude-nemotron --yolo
-```
-
-The generic free route:
+Disable fallback for diagnosis:
 
 ```bash
-alt-claude-free --yolo
+ALT_CLAUDE_NO_FALLBACK=1 alt-claude --profile north-mini-code --yolo
 ```
 
-uses `openrouter/free` when the free route is available and otherwise follows the same fallback policy.
+## Live profile validation
 
-Free model availability, quotas and routing can change without notice.
-
-## Adding another model shortcut
-
-Create only one file:
-
-```text
-profiles/my-model.env
-```
-
-Example:
-
-```bash
-PROVIDER=openrouter
-MODEL=vendor/model:free
-DISPLAY_NAME="My Model"
-STATUS=experimental
-NOTES="Short operational note"
-```
-
-Then run:
-
-```bash
-./install.sh
-```
-
-The installer generates `alt-claude-my-model`. No new argument parser or provider wrapper is required.
-
-Validate the OpenRouter catalog and zero-price status without running inference:
+Run:
 
 ```bash
 bash tools/check-profiles.sh
 ```
 
-## Direct provider usage
+The check compares each OpenRouter profile with the live catalog and reports whether the model still exists, remains free, its current API context length, the declared context length and the safe threshold. It fails on price changes or unsafe/context-drift configuration.
+
+## Direct provider mode
+
+The original provider interface remains available:
 
 ```bash
 alt-claude --use copilot
 alt-claude --use codex --yolo
 alt-claude --use openrouter --model <provider/model>
-alt-claude --use kimi
+alt-claude --usage
 ```
 
 `--user` remains accepted as a compatibility alias for `--use`.
 
-## Provider and credential health
-
-```bash
-alt-claude --usage
-```
-
-This checks configured credentials and reports usage where the provider exposes it through its API.
-
 ## Credentials
 
-Default credential root:
+Default root:
 
 ```text
 ~/.config/credentials/personal/ai/
 ```
 
-Typical files:
-
-```text
-openrouter.env
-kimi.env
-grok.env
-nvidia.env
-copilot.env
-```
-
-Keep them private:
+Keep credentials private:
 
 ```bash
 chmod 700 ~/.config/credentials/personal/ai
 chmod 600 ~/.config/credentials/personal/ai/*.env
 ```
+
+See [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), and [docs/usage.md](docs/usage.md).
 
 ## Tests
 
@@ -178,16 +189,14 @@ bash tests/test-profiles.sh
 bash tools/check-profiles.sh
 ```
 
-The structural test verifies profile installation, exact forwarding of `--yolo` and `--resume`, and the OpenRouter-free-to-Codex fallback path. The catalog check verifies that OpenRouter model IDs still exist and are still zero-cost.
-
-See also [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), and [docs/usage.md](docs/usage.md).
+The structural suite covers installation, unified dispatch, `--yolo`, `--resume`, OpenRouter-free fallback, oversized-session blocking and offline handoff generation.
 
 ## Design principles
 
-- one execution core;
-- model variants are data, not copied scripts;
-- credentials stay outside the repository;
-- Claude Code remains the user-facing harness;
-- common flags are inherited automatically by every profile;
-- free aliases never fall silently into pay-as-you-go APIs;
-- provider/model health data must not be invented when an API does not expose it.
+- one user-facing command and one provider execution core;
+- model variants are declarative data;
+- common flags and context policy are inherited by every profile;
+- credentials remain outside the repository;
+- free aliases never silently fall into pay-as-you-go APIs;
+- context limits are validated against live catalog data;
+- recovery from an oversized session must remain possible without another model call.

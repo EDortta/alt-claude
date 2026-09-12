@@ -17,11 +17,13 @@ install -m 0755 "$ROOT/alt-claude" "$TARGET_DIR/alt-claude"
 install -m 0755 "$ROOT/alt-claude-core" "$TARGET_DIR/alt-claude-core"
 install -m 0755 "$ROOT/alt-claude-profile" "$TARGET_DIR/alt-claude-profile"
 install -m 0755 "$ROOT/tools/session-compact.py" "$TARGET_DIR/alt-claude-session-compact"
+install -m 0755 "$ROOT/tools/project-policy.py" "$TARGET_DIR/alt-claude-policy"
 
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-core"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-profile"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-session-compact"
+printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-policy"
 
 shopt -s nullglob
 profiles=("$ROOT"/profiles/*.env)
@@ -55,3 +57,4 @@ printf '\nPerfis instalados em: %s\n' "$PROFILE_DIR"
 printf 'Uso principal: alt-claude --profile <perfil> [--yolo] [--resume SESSION_ID]\n'
 printf 'Compatibilidade: alt-claude-<perfil> continua funcionando.\n'
 printf 'Recuperação offline: alt-claude compact SESSION_ID\n'
+printf 'Política do projeto: alt-claude policy init sensitive\n'

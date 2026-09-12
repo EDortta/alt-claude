@@ -2,16 +2,36 @@
 
 Unified Claude Code launcher for alternative providers and model profiles.
 
-The preferred interface is now a single command:
+The preferred interface is one command:
 
 ```bash
 alt-claude --profile north-mini-code --yolo
 alt-claude --profile nemotron --resume SESSION_ID
 alt-claude profiles
 alt-claude compact SESSION_ID
+alt-claude policy show
 ```
 
-Compatibility launchers such as `alt-claude-north-mini-code` remain installed and simply delegate to the same core.
+Compatibility launchers such as `alt-claude-north-mini-code` remain installed and delegate to the same core.
+
+## Help
+
+The CLI has one complete top-level help:
+
+```bash
+alt-claude --help
+```
+
+Contextual help is also available:
+
+```bash
+alt-claude help profiles
+alt-claude help compact
+alt-claude help policy
+alt-claude help providers
+```
+
+The main help documents profiles, providers, `--yolo`, `--resume`, usage checks, context guard, offline compaction, free-route fallback, privacy classes and project policy.
 
 ## Install
 
@@ -21,7 +41,7 @@ cd alt-claude
 ./install.sh
 ```
 
-The installer places the dispatcher, provider core, profile dispatcher and offline session compactor under `~/.local/bin/`, and copies declarative profiles to `~/.local/share/alt-claude/profiles/`.
+The installer places the dispatcher, provider core, profile dispatcher, offline session compactor and policy helper under `~/.local/bin/`, and copies declarative profiles to `~/.local/share/alt-claude/profiles/`.
 
 ## Common flags
 
@@ -35,6 +55,81 @@ alt-claude --profile north-mini-code --yolo --resume SESSION_ID
 
 `--yolo` becomes Claude Code's `--dangerously-skip-permissions`. `--resume` and unknown Claude Code flags are forwarded unchanged.
 
+## Privacy classes
+
+Every profile must explicitly declare one of:
+
+```text
+PRIVACY=sensitive_ok
+PRIVACY=review
+PRIVACY=public_only
+```
+
+Meaning:
+
+- `sensitive_ok`: the profile is approved by the alt-claude policy metadata for sensitive projects;
+- `review`: routing/provider terms must be reviewed before private or sensitive code is sent;
+- `public_only`: do not use with private or sensitive source code.
+
+`alt-claude profiles` renders these as visibly separated groups, with `public_only` models under a clear **DO NOT USE WITH SENSITIVE/PRIVATE CODE** section.
+
+No free OpenRouter profile is promoted to `sensitive_ok` merely because it works technically. Unknown or unverified privacy behavior is classified conservatively as `review`.
+
+The dynamic `openrouter/free` route and the free Thinking Machines Inkling profiles are currently `public_only`.
+
+## Project policy
+
+Projects can block models/providers before any request leaves the machine. Configuration lives at:
+
+```text
+<git-root>/.alt-claude/config
+```
+
+The file is declarative data and is never executed with `source`, `eval` or equivalent.
+
+Create a normal policy:
+
+```bash
+alt-claude policy init standard
+```
+
+Create a restrictive policy for confidential code:
+
+```bash
+alt-claude policy init sensitive
+```
+
+Inspect it:
+
+```bash
+alt-claude policy show
+```
+
+Block a specific profile or provider:
+
+```bash
+alt-claude policy deny profile inkling
+alt-claude policy deny provider openrouter
+```
+
+Explicitly allow one profile when you have reviewed its terms:
+
+```bash
+alt-claude policy allow profile north-mini-code
+```
+
+A sensitive policy defaults to rejecting both `review` and `public_only`. Policy rejection happens before the OpenRouter preflight or model call.
+
+Example generated config:
+
+```text
+mode=sensitive
+deny_profiles=
+allow_profiles=
+deny_providers=
+deny_privacy=review,public_only
+```
+
 ## Context guard
 
 Each model profile declares:
@@ -47,9 +142,9 @@ AUTO_COMPACT_PCT
 
 `AUTO_COMPACT_PCT` is exported through `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` as a best-effort early-compaction hint. Because Claude Code versions can change how auto-compaction behaves, `alt-claude` also has a deterministic guard for `--resume`.
 
-Before resuming a known local session, the launcher reads its JSONL transcript offline. If the latest observed context is already beyond the profile's safe threshold, it refuses a request that is likely to fail at the provider and tells you to create a handoff instead.
+Before resuming a known local session, the launcher reads its JSONL transcript offline. If the latest observed context is already beyond the profile's safe threshold, it refuses a request likely to fail at the provider and tells you to create a handoff instead.
 
-For example, North Mini Code uses a 256K window but reserves substantial space for tools and output:
+For example, North Mini Code uses:
 
 ```text
 CONTEXT_WINDOW=256000
@@ -65,7 +160,7 @@ ALT_CLAUDE_ALLOW_OVERSIZE_RESUME=1 alt-claude --profile north-mini-code --resume
 
 ## Offline session compact / recovery
 
-When `/compact` can no longer fit inside the model's own context, generate a new-session handoff locally:
+When `/compact` can no longer fit inside the model's context, generate a new-session handoff locally:
 
 ```bash
 alt-claude compact SESSION_ID
@@ -77,8 +172,6 @@ It reads Claude Code's local session JSONL, makes no model/API call, and writes:
 claude-handoff-SESSION_ID.md
 ```
 
-The handoff contains available repository metadata, frequently touched files, recent shell commands, recent dialogue and a continuation instruction. It is intentionally a lossy recovery artifact, not an LLM semantic summary; the current repository/filesystem remains authoritative.
-
 Then start fresh, for example:
 
 ```bash
@@ -86,15 +179,9 @@ alt-claude --profile north-mini-code --yolo \
   "Leia claude-handoff-SESSION_ID.md, confira o estado atual do repositório e continue o trabalho."
 ```
 
-You can inspect the locally observed context without generating a handoff:
-
-```bash
-alt-claude-session-compact SESSION_ID --status
-```
-
 ## Profiles
 
-List the installed catalog and its context budgets:
+List installed profiles, privacy groups and context budgets:
 
 ```bash
 alt-claude profiles
@@ -122,9 +209,7 @@ glm-5.3-flash
 free
 ```
 
-The experimental models are deliberately not promoted to active merely because their endpoints exist; they still need repeated real software-engineering tasks.
-
-The free Thinking Machines Inkling endpoints may have data-retention/model-improvement terms different from ordinary paid endpoints. Review those terms before sending private source code.
+Experimental means the integration is wired but still needs repeated real software-engineering tasks before promotion to active.
 
 ## Free-route fallback
 
@@ -150,7 +235,7 @@ Run:
 bash tools/check-profiles.sh
 ```
 
-The check compares each OpenRouter profile with the live catalog and reports whether the model still exists, remains free, its current API context length, the declared context length and the safe threshold. It fails on price changes or unsafe/context-drift configuration.
+The check compares each OpenRouter profile with the live catalog and reports whether the model still exists, remains free, its current API context length, the declared context length and safe threshold.
 
 ## Direct provider mode
 
@@ -189,12 +274,15 @@ bash tests/test-profiles.sh
 bash tools/check-profiles.sh
 ```
 
-The structural suite covers installation, unified dispatch, `--yolo`, `--resume`, OpenRouter-free fallback, oversized-session blocking and offline handoff generation.
+The structural suite covers complete help, installation, unified dispatch, privacy metadata, project policy, `--yolo`, `--resume`, free fallback, oversized-session blocking and offline handoff generation.
 
 ## Design principles
 
 - one user-facing command and one provider execution core;
 - model variants are declarative data;
+- privacy metadata is explicit, never inferred from a model name;
+- sensitive-project restrictions are enforced before network calls;
+- project policy files are data, never executable shell;
 - common flags and context policy are inherited by every profile;
 - credentials remain outside the repository;
 - free aliases never silently fall into pay-as-you-go APIs;

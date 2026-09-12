@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="alt-claude: uma interface, várias rotas. Continue usando Claude Code com o backend que fizer sentido agora.">
+  <meta name="description" content="alt-claude: um comando para múltiplos modelos e providers, com --yolo, --resume, proteção de contexto, recuperação offline e políticas de privacidade por projeto.">
   <meta name="theme-color" content="#f4efe6">
-  <title>alt-claude — Sempre existe outra rota</title>
+  <title>alt-claude — Uma interface, várias rotas, contexto sob controle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
 
   <div class="announcement" role="status">
     <span class="announcement-dot" aria-hidden="true"></span>
-    <span>Plano A, B, C e aquele outro que você jurou que nunca usaria.</span>
+    <span>Plano A, B, C e agora também contexto, privacidade e recuperação offline.</span>
   </div>
 
   <header class="site-header">
@@ -26,351 +26,149 @@
       <span>alt—claude</span>
     </a>
     <button class="menu-button" type="button" aria-expanded="false" aria-controls="main-nav">
-      <span></span><span></span>
-      <span class="sr-only">Abrir menu</span>
+      <span></span><span></span><span class="sr-only">Abrir menu</span>
     </button>
     <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
       <a href="#como-funciona">Como funciona</a>
       <a href="#recursos">Recursos</a>
+      <a href="#seguranca">Segurança</a>
       <a href="#exemplos">Exemplos</a>
-      <a href="#faq">Perguntas</a>
       <div class="language-switcher" aria-label="Idioma">
-        <button type="button" data-language="en">EN</button>
-        <span aria-hidden="true">|</span>
-        <button type="button" data-language="es">ES</button>
-        <span aria-hidden="true">|</span>
+        <button type="button" data-language="en">EN</button><span aria-hidden="true">|</span>
+        <button type="button" data-language="es">ES</button><span aria-hidden="true">|</span>
         <button type="button" data-language="pt-BR">PT-BR</button>
       </div>
-      <a class="nav-cta" href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer">
-        Ver no GitHub
-        <span aria-hidden="true">↗</span>
-      </a>
+      <a class="nav-cta" href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer">Ver no GitHub <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
 
   <main id="conteudo">
     <section class="hero" id="topo">
       <div class="hero-copy">
-        <p class="eyebrow reveal">CONTINUIDADE OPERACIONAL, SÓ QUE SEM GRAVATA</p>
-        <h1 class="reveal reveal-delay-1">
-          Seu código não precisa saber que o plano A
-          <em>foi ali.</em>
-        </h1>
+        <p class="eyebrow reveal">UMA INTERFACE. VÁRIOS MODELOS. MENOS SURPRESAS.</p>
+        <h1 class="reveal reveal-delay-1">Seu agente pode trocar de rota sem perder <em>o rumo.</em></h1>
         <p class="hero-description reveal reveal-delay-2">
-          Uma interface familiar, várias rotas por baixo do capô. Troque o caminho,
-          mantenha o contexto e continue digitando com a serenidade de quem
-          definitivamente tinha um plano desde o início.
+          O alt-claude mantém o Claude Code como interface, adiciona perfis de modelos e providers,
+          preserva <code>--yolo</code> e <code>--resume</code>, protege sessões grandes e impede que um
+          projeto sensível use a rota errada por acidente.
         </p>
         <div class="hero-actions reveal reveal-delay-3">
-          <a class="button button-primary" href="#instalar">
-            <span>Instalar a saída lateral</span>
-            <span class="button-arrow" aria-hidden="true">→</span>
-          </a>
-          <a class="text-link" href="#como-funciona">Entender sem PowerPoint <span aria-hidden="true">↓</span></a>
+          <a class="button button-primary" href="#instalar"><span>Instalar alt-claude</span><span class="button-arrow" aria-hidden="true">→</span></a>
+          <a class="text-link" href="#novidades">Ver o que mudou <span aria-hidden="true">↓</span></a>
         </div>
         <ul class="hero-notes reveal reveal-delay-3" aria-label="Destaques">
-          <li><span aria-hidden="true">✓</span> Open source</li>
           <li><span aria-hidden="true">✓</span> Um comando</li>
-          <li><span aria-hidden="true">✓</span> Sem novo ritual</li>
+          <li><span aria-hidden="true">✓</span> Context guard</li>
+          <li><span aria-hidden="true">✓</span> Política por projeto</li>
         </ul>
       </div>
 
       <div class="hero-visual reveal reveal-delay-2" aria-label="Demonstração interativa do alt-claude">
         <div class="doodle-note" aria-hidden="true">
-          <svg viewBox="0 0 82 42" fill="none">
-            <path d="M79 7C62 4 43 10 32 20C24 27 16 35 3 37M3 37l9-1M3 37l5-8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>por aqui,<br>aparentemente</span>
+          <svg viewBox="0 0 82 42" fill="none"><path d="M79 7C62 4 43 10 32 20C24 27 16 35 3 37M3 37l9-1M3 37l5-8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>agora é<br>um produto</span>
         </div>
-
         <div class="terminal-card">
           <div class="terminal-topbar">
             <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
-            <span>alt-claude — rotas</span>
-            <span class="terminal-signal"><i></i> online</span>
+            <span>alt-claude — perfis</span><span class="terminal-signal"><i></i> online</span>
           </div>
           <div class="terminal-body">
             <div class="terminal-heading">
-              <div>
-                <span class="terminal-kicker">ESCOLHA SUA ROTA</span>
-                <h2>A mesa está posta.</h2>
-              </div>
-              <span class="tiny-sticker">sem<br>drama</span>
+              <div><span class="terminal-kicker">ESCOLHA UM PERFIL</span><h2>Uma interface só.</h2></div>
+              <span class="tiny-sticker">com<br>guardrails</span>
             </div>
-
-            <div class="route-list" role="group" aria-label="Escolha uma rota para a demonstração">
+            <div class="route-list" role="group" aria-label="Rotas disponíveis">
               <button class="route-option is-active" type="button" data-route="copilot" aria-pressed="true">
-                <span class="route-icon route-icon-blue" aria-hidden="true">◌</span>
-                <span class="route-info"><b>copilot</b><small>gateway local</small></span>
-                <span class="route-status">pronto</span>
-                <span class="route-radio" aria-hidden="true"></span>
+                <span class="route-icon route-icon-blue" aria-hidden="true">◌</span><span class="route-info"><b>north-mini-code</b><small>coding agent · 256K</small></span><span class="route-status">active</span><span class="route-radio" aria-hidden="true"></span>
               </button>
               <button class="route-option" type="button" data-route="codex" aria-pressed="false">
-                <span class="route-icon route-icon-green" aria-hidden="true">◇</span>
-                <span class="route-info"><b>codex</b><small>proxy local</small></span>
-                <span class="route-status">pronto</span>
-                <span class="route-radio" aria-hidden="true"></span>
+                <span class="route-icon route-icon-green" aria-hidden="true">◇</span><span class="route-info"><b>nemotron</b><small>long context · 1M</small></span><span class="route-status">active</span><span class="route-radio" aria-hidden="true"></span>
               </button>
               <button class="route-option" type="button" data-route="openrouter" aria-pressed="false">
-                <span class="route-icon route-icon-purple" aria-hidden="true">↝</span>
-                <span class="route-info"><b>openrouter</b><small>escolha o modelo</small></span>
-                <span class="route-status">pronto</span>
-                <span class="route-radio" aria-hidden="true"></span>
+                <span class="route-icon route-icon-purple" aria-hidden="true">↝</span><span class="route-info"><b>laguna</b><small>coding agent · 262K</small></span><span class="route-status">active</span><span class="route-radio" aria-hidden="true"></span>
               </button>
               <button class="route-option" type="button" data-route="kimi" aria-pressed="false">
-                <span class="route-icon route-icon-orange" aria-hidden="true">☾</span>
-                <span class="route-info"><b>kimi</b><small>mensagens nativas</small></span>
-                <span class="route-status">pronto</span>
-                <span class="route-radio" aria-hidden="true"></span>
+                <span class="route-icon route-icon-orange" aria-hidden="true">☾</span><span class="route-info"><b>mais perfis</b><small>experimentais e gratuitos</small></span><span class="route-status">catalog</span><span class="route-radio" aria-hidden="true"></span>
               </button>
             </div>
-
-            <div class="command-preview">
-              <span class="prompt" aria-hidden="true">$</span>
-              <code id="demo-command">alt-claude --use copilot</code>
-              <button class="copy-icon" type="button" data-copy-target="demo-command" aria-label="Copiar comando">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>
-              </button>
-            </div>
+            <div class="command-preview"><span class="prompt" aria-hidden="true">$</span><code id="demo-command">alt-claude --profile north-mini-code --yolo</code><button class="copy-icon" type="button" data-copy-target="demo-command" aria-label="Copiar comando"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button></div>
           </div>
         </div>
-        <div class="orbit orbit-one" aria-hidden="true"></div>
-        <div class="orbit orbit-two" aria-hidden="true"></div>
+        <div class="orbit orbit-one" aria-hidden="true"></div><div class="orbit orbit-two" aria-hidden="true"></div>
       </div>
     </section>
 
-    <section class="ticker" aria-label="Resumo do produto">
-      <div class="ticker-track">
-        <span>UMA INTERFACE</span><i>✦</i><span>VÁRIAS ROTAS</span><i>✦</i><span>ZERO NOVOS HÁBITOS</span><i>✦</i>
-        <span aria-hidden="true">UMA INTERFACE</span><i aria-hidden="true">✦</i><span aria-hidden="true">VÁRIAS ROTAS</span><i aria-hidden="true">✦</i><span aria-hidden="true">ZERO NOVOS HÁBITOS</span><i aria-hidden="true">✦</i>
-      </div>
-    </section>
+    <section class="ticker" aria-label="Resumo do produto"><div class="ticker-track">
+      <span>UM COMANDO</span><i>✦</i><span>PERFIS</span><i>✦</i><span>CONTEXT GUARD</span><i>✦</i><span>RECOVERY OFFLINE</span><i>✦</i><span>POLÍTICA POR PROJETO</span><i>✦</i>
+      <span aria-hidden="true">UM COMANDO</span><i aria-hidden="true">✦</i><span aria-hidden="true">PERFIS</span><i aria-hidden="true">✦</i><span aria-hidden="true">CONTEXT GUARD</span><i aria-hidden="true">✦</i>
+    </div></section>
 
-    <section class="problem-section section-shell" id="como-funciona">
+    <section class="problem-section section-shell" id="novidades">
       <div class="section-intro">
-        <p class="eyebrow">UM PEQUENO EXERCÍCIO DE IMAGINAÇÃO</p>
-        <h2>E se a sua ferramenta favorita resolvesse fazer <em>charme?</em></h2>
-        <p>Você poderia encarar o cursor piscando por horas. Ou mostrar a ele que este relacionamento sempre foi aberto.</p>
+        <p class="eyebrow">O PROJETO CRESCEU</p>
+        <h2>Não é mais só um seletor de <em>backend.</em></h2>
+        <p>O alt-claude agora cuida da escolha do modelo, dos limites de contexto, da recuperação de sessões e de quais rotas podem tocar cada projeto.</p>
       </div>
-
       <div class="story-grid">
-        <article class="story-card story-card-dark">
-          <span class="story-number">01</span>
-          <div class="story-art art-door" aria-hidden="true">
-            <div class="door"><span></span></div>
-            <div class="door-shadow"></div>
-          </div>
-          <div>
-            <p class="story-label">A ROTA DE SEMPRE</p>
-            <h3>Resolveu contemplar o infinito.</h3>
-            <p>Ela merece esse tempo. Seu prazo, talvez não.</p>
-          </div>
-        </article>
-
-        <article class="story-card story-card-coral">
-          <span class="story-number">02</span>
-          <div class="story-art art-sign" aria-hidden="true">
-            <span>rota<br>alternativa</span>
-            <svg viewBox="0 0 100 65"><path d="M9 52C34 52 37 14 60 14H91M82 5l10 9-10 9" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div>
-            <p class="story-label">ALT + CLAUDE</p>
-            <h3>Você troca a rota.</h3>
-            <p>Uma flag. O mesmo terminal. Nenhuma reunião de crise com você mesmo.</p>
-          </div>
-        </article>
-
-        <article class="story-card story-card-cream">
-          <span class="story-number">03</span>
-          <div class="story-art art-coffee" aria-hidden="true">
-            <div class="steam steam-a"></div><div class="steam steam-b"></div>
-            <div class="cup"><span></span></div>
-          </div>
-          <div>
-            <p class="story-label">DOIS SEGUNDOS DEPOIS</p>
-            <h3>O cursor volta a trabalhar.</h3>
-            <p>Como se tudo isso fizesse parte do plano. Porque agora faz.</p>
-          </div>
-        </article>
+        <article class="story-card story-card-dark"><span class="story-number">01</span><div><p class="story-label">UM COMANDO</p><h3>Perfis viraram a interface principal.</h3><p><code>alt-claude --profile north-mini-code --yolo</code>. Os antigos <code>alt-claude-*</code> continuam como atalhos de compatibilidade.</p></div></article>
+        <article class="story-card story-card-coral"><span class="story-number">02</span><div><p class="story-label">CONTEXTO</p><h3>Não espere o modelo quebrar.</h3><p>Cada perfil declara sua janela, uma margem segura e o ponto de compactação. Sessões grandes são bloqueadas antes de uma requisição condenada.</p></div></article>
+        <article class="story-card story-card-cream"><span class="story-number">03</span><div><p class="story-label">RECUPERAÇÃO</p><h3>Compacte mesmo depois do limite.</h3><p><code>alt-claude compact SESSION_ID</code> lê o JSONL local e cria um handoff offline para começar uma sessão nova sem chamar outro modelo.</p></div></article>
       </div>
     </section>
 
     <section class="features-section section-shell" id="recursos">
-      <div class="section-heading-row">
-        <div>
-          <p class="eyebrow">MENOS DEPENDÊNCIA. MAIS DEPENDÊNCIAS.</p>
-          <h2>Por baixo do capô,<br><em>bom senso.</em></h2>
-        </div>
-        <p>O alt-claude não reinventa seu fluxo. Ele só instala algumas portas onde antes havia uma parede muito confiante.</p>
-      </div>
-
+      <div class="section-heading-row"><div><p class="eyebrow">GUARDRAILS SEM ENGESSAR</p><h2>O agente continua rápido.<br><em>O launcher fica atento.</em></h2></div><p>O objetivo não é esconder o provider. É tornar explícitas as decisões que antes apareciam só quando algo quebrava.</p></div>
       <div class="bento-grid">
-        <article class="feature feature-wide">
-          <div class="feature-copy">
-            <span class="feature-index">01 / ROTAS</span>
-            <h3>Troque de caminho,<br>não de ferramenta.</h3>
-            <p>Continue no Claude Code e escolha o backend na hora de começar. Seu músculo de memória agradece.</p>
-          </div>
-          <div class="route-map" aria-hidden="true">
-            <div class="map-origin">você</div>
-            <svg viewBox="0 0 360 210" preserveAspectRatio="none">
-              <path d="M43 104C110 104 102 31 180 31H310"/>
-              <path d="M43 104H310"/>
-              <path d="M43 104C110 104 102 178 180 178H310"/>
-            </svg>
-            <span class="map-point point-a">rota a <i></i></span>
-            <span class="map-point point-b">rota b <i></i></span>
-            <span class="map-point point-c">rota c <i></i></span>
-          </div>
-        </article>
+        <article class="feature feature-wide"><div class="feature-copy"><span class="feature-index">01 / PERFIS</span><h3>Modelos como configuração,<br>não scripts copiados.</h3><p>Provider, modelo, contexto, margem segura, compactação e privacidade vivem no perfil. Todos herdam o mesmo parser e os mesmos parâmetros.</p></div><div class="route-map" aria-hidden="true"><div class="map-origin">alt</div><svg viewBox="0 0 360 210" preserveAspectRatio="none"><path d="M43 104C110 104 102 31 180 31H310"/><path d="M43 104H310"/><path d="M43 104C110 104 102 178 180 178H310"/></svg><span class="map-point point-a">north <i></i></span><span class="map-point point-b">laguna <i></i></span><span class="map-point point-c">nemotron <i></i></span></div></article>
+        <article class="feature feature-health"><span class="feature-index">02 / CONTEXTO</span><div class="health-gauge" aria-hidden="true"><svg viewBox="0 0 160 90"><path class="gauge-base" d="M22 76a60 60 0 0 1 116 0"/><path class="gauge-value" d="M22 76a60 60 0 0 1 116 0"/></svg><span>SAFE</span></div><h3>Margem antes do abismo.</h3><p>North Mini Code, por exemplo, tem 256K de janela, mas o alt-claude corta o resume muito antes disso para reservar espaço para ferramentas e resposta.</p></article>
+        <article class="feature feature-config"><span class="feature-index">03 / PROJETO</span><div class="config-art" aria-hidden="true"><span>.alt-claude/</span><span class="config-file">↳ config <i>policy</i></span><span class="config-file">↳ deny_provider <i>...</i></span></div><h3>A pasta decide quem entra.</h3><p>Um projeto pode bloquear providers, perfis ou classes de privacidade. A checagem acontece antes de qualquer chamada externa.</p></article>
+        <article class="feature feature-full"><div><span class="feature-index">04 / COMPATIBILIDADE</span><h3><code>--yolo</code> e <code>--resume</code> em todo lugar.</h3></div><div class="feature-full-copy"><p>Os parâmetros comuns passam pelo mesmo núcleo, independentemente do modelo escolhido.</p><div class="argument-chips" aria-label="Argumentos suportados"><code>--profile</code><code>--yolo</code><code>--resume</code><code>compact</code><code>policy</code></div></div></article>
+      </div>
+    </section>
 
-        <article class="feature feature-health">
-          <span class="feature-index">02 / REALIDADE</span>
-          <div class="health-gauge" aria-hidden="true">
-            <svg viewBox="0 0 160 90"><path class="gauge-base" d="M22 76a60 60 0 0 1 116 0"/><path class="gauge-value" d="M22 76a60 60 0 0 1 116 0"/></svg>
-            <span>N/D</span>
-          </div>
-          <h3>Sem números criativos.</h3>
-          <p>Se uma API não conta, o relatório também não. “Não disponível” ainda é uma resposta.</p>
-        </article>
-
-        <article class="feature feature-config">
-          <span class="feature-index">03 / SEGREDOS</span>
-          <div class="config-art" aria-hidden="true">
-            <span>credentials/</span>
-            <span class="config-file">↳ provider.env <i>••••••••</i></span>
-            <span class="config-file">↳ outro.env <i>••••••••</i></span>
-          </div>
-          <h3>Chaves ficam no bolso.</h3>
-          <p>Credenciais fora do repositório. Porque surpresa boa é só em festa.</p>
-        </article>
-
-        <article class="feature feature-full">
-          <div>
-            <span class="feature-index">04 / COMPATIBILIDADE</span>
-            <h3>Você continua falando Claude.</h3>
-          </div>
-          <div class="feature-full-copy">
-            <p>Argumentos conhecidos seguem adiante: sessões, modelos, permissões e o seu otimismo cauteloso.</p>
-            <div class="argument-chips" aria-label="Argumentos suportados">
-              <code>--resume</code><code>--model</code><code>--yolo</code><code>...</code>
-            </div>
-          </div>
-        </article>
+    <section class="problem-section section-shell" id="seguranca">
+      <div class="section-intro"><p class="eyebrow">PRIVACIDADE NÃO É UM ASTERISCO</p><h2>Nem todo modelo gratuito deve ver <em>todo código.</em></h2><p><code>alt-claude profiles</code> separa o catálogo por classe de privacidade. Se não há evidência suficiente, o perfil não ganha selo de seguro por otimismo.</p></div>
+      <div class="story-grid">
+        <article class="story-card story-card-dark"><span class="story-number">A</span><div><p class="story-label">SENSITIVE_OK</p><h3>Adequado para projeto sensível.</h3><p>Somente quando a política foi explicitamente verificada. Essa categoria não é presumida.</p></div></article>
+        <article class="story-card story-card-coral"><span class="story-number">B</span><div><p class="story-label">REVIEW</p><h3>Revise antes de enviar código privado.</h3><p>É a classe conservadora para endpoints e rotas cujos termos, retenção ou tratamento ainda exigem avaliação.</p></div></article>
+        <article class="story-card story-card-cream"><span class="story-number">C</span><div><p class="story-label">PUBLIC_ONLY</p><h3>Somente código público ou descartável.</h3><p>Inkling, Inkling Small e o roteador dinâmico <code>openrouter/free</code> ficam claramente separados nesta faixa.</p></div></article>
       </div>
     </section>
 
     <section class="install-section section-shell" id="instalar">
-      <div class="install-card">
-        <div class="install-copy">
-          <p class="eyebrow eyebrow-light">TRÊS LINHAS. SEM CADASTRO PARA BAIXAR O PDF.</p>
-          <h2>Uma porta extra<br>antes do próximo <em>“hmm”.</em></h2>
-          <p>Clone, instale e escolha sua rota. O resto continua exatamente onde você deixou.</p>
-        </div>
-        <div class="install-terminal">
-          <div class="install-terminal-bar">
-            <span><i></i> terminal</span>
-            <button type="button" class="copy-button" data-copy-target="install-command">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>
-              <span>copiar</span>
-            </button>
-          </div>
-          <pre id="install-command"><code><span>git clone</span> https://github.com/EDortta/alt-claude.git
+      <div class="install-card"><div class="install-copy"><p class="eyebrow eyebrow-light">INSTALAÇÃO CONTINUA SIMPLES</p><h2>Clone, instale,<br><em>escolha a política.</em></h2><p>O projeto ficou mais capaz sem transformar a instalação em uma cerimônia.</p></div><div class="install-terminal"><div class="install-terminal-bar"><span><i></i> terminal</span><button type="button" class="copy-button" data-copy-target="install-command"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg><span>copiar</span></button></div><pre id="install-command"><code><span>git clone</span> https://github.com/EDortta/alt-claude.git
 <span>cd</span> alt-claude
-./install.sh</code></pre>
-          <div class="install-success"><span>✓</span> Pronto para escolher caminhos melhores.</div>
-        </div>
-      </div>
+./install.sh
+alt-claude profiles</code></pre><div class="install-success"><span>✓</span> Perfis, contexto, recovery e policy instalados.</div></div></div>
     </section>
 
     <section class="examples-section section-shell" id="exemplos">
-      <div class="section-heading-row">
-        <div>
-          <p class="eyebrow">EXEMPLOS DE USO</p>
-          <h2>Escolha uma rota.<br><em>Continue.</em></h2>
-        </div>
-        <p>Comandos simples para começar. O que você não usar continua sendo problema de outra pessoa.</p>
-      </div>
+      <div class="section-heading-row"><div><p class="eyebrow">FLUXO ATUAL</p><h2>Escolha, continue,<br><em>recupere.</em></h2></div><p>O caminho principal agora é por perfil. Provider direto continua disponível para quem precisa.</p></div>
       <div class="examples-grid">
-        <article class="example-card">
-          <span class="feature-index">ROTA PADRÃO</span>
-          <h3>Copilot</h3>
-          <p>Use o gateway local do GitHub Copilot.</p>
-          <div class="example-command"><code>alt-claude --use copilot</code><button type="button" class="copy-button" data-copy-target="command-copilot">copiar</button></div>
-          <code id="command-copilot" class="sr-only">alt-claude --use copilot</code>
-        </article>
-        <article class="example-card">
-          <span class="feature-index">ROTA OPENAI</span>
-          <h3>Codex</h3>
-          <p>Encaminhe o Claude Code para o proxy Codex.</p>
-          <div class="example-command"><code>alt-claude --use codex --yolo</code><button type="button" class="copy-button" data-copy-target="command-codex">copiar</button></div>
-          <code id="command-codex" class="sr-only">alt-claude --use codex --yolo</code>
-        </article>
-        <article class="example-card">
-          <span class="feature-index">ROTA FLEXÍVEL</span>
-          <h3>OpenRouter</h3>
-          <p>Escolha o modelo compatível com Anthropic.</p>
-          <div class="example-command"><code>alt-claude --use openrouter --model provider/model</code><button type="button" class="copy-button" data-copy-target="command-openrouter">copiar</button></div>
-          <code id="command-openrouter" class="sr-only">alt-claude --use openrouter --model provider/model</code>
-        </article>
+        <article class="example-card"><span class="feature-index">TRABALHAR</span><h3>North Mini Code</h3><p>Perfil de coding com proteção própria de contexto.</p><div class="example-command"><code>alt-claude --profile north-mini-code --yolo</code><button type="button" class="copy-button" data-copy-target="command-profile">copiar</button></div><code id="command-profile" class="sr-only">alt-claude --profile north-mini-code --yolo</code></article>
+        <article class="example-card"><span class="feature-index">RETOMAR</span><h3>Resume protegido</h3><p>O launcher mede a sessão local antes de reenviá-la.</p><div class="example-command"><code>alt-claude --profile north-mini-code --resume SESSION_ID</code><button type="button" class="copy-button" data-copy-target="command-resume">copiar</button></div><code id="command-resume" class="sr-only">alt-claude --profile north-mini-code --resume SESSION_ID</code></article>
+        <article class="example-card"><span class="feature-index">RECUPERAR</span><h3>Compact offline</h3><p>Gere um handoff sem depender de uma chamada de modelo.</p><div class="example-command"><code>alt-claude compact SESSION_ID</code><button type="button" class="copy-button" data-copy-target="command-compact">copiar</button></div><code id="command-compact" class="sr-only">alt-claude compact SESSION_ID</code></article>
       </div>
-      <div class="variants-panel">
-        <p class="eyebrow">ATALHOS PRONTOS</p>
-        <h3>Os outros <em>alt-claude</em> também estão aqui.</h3>
-        <div class="variant-list">
-          <div><code>alt-claude-laguna</code><span>OpenRouter · Laguna S-2.1</span></div>
-          <div><code>alt-claude-nemotron</code><span>OpenRouter · Nemotron 3 Ultra</span></div>
-          <div><code>alt-claude-north-mini-code</code><span>OpenRouter · North Mini Code</span></div>
-        </div>
-      </div>
+      <div class="variants-panel"><p class="eyebrow">POLÍTICA E CATÁLOGO</p><h3>O próprio projeto pode impor <em>limites.</em></h3><div class="variant-list"><div><code>alt-claude profiles</code><span>lista perfis separados por privacidade</span></div><div><code>alt-claude policy init sensitive</code><span>cria .alt-claude/config conservador</span></div><div><code>alt-claude --help</code><span>ajuda completa em um único lugar</span></div></div></div>
     </section>
 
     <section class="faq-section section-shell" id="faq">
-      <div class="faq-title">
-        <p class="eyebrow">PERGUNTAS PERFEITAMENTE RAZOÁVEIS</p>
-        <h2>Antes que você<br><em>abra outra aba.</em></h2>
-      </div>
+      <div class="faq-title"><p class="eyebrow">PERGUNTAS QUE AGORA IMPORTAM</p><h2>Antes que você<br><em>estoure outra janela.</em></h2></div>
       <div class="faq-list">
-        <details open>
-          <summary>Isso substitui o Claude Code?<span aria-hidden="true"></span></summary>
-          <p>Não. Ele preserva a interface que você já usa e organiza caminhos compatíveis por baixo dela. É menos uma mudança de casa e mais uma porta nos fundos.</p>
-        </details>
-        <details>
-          <summary>Preciso aprender outro fluxo?<span aria-hidden="true"></span></summary>
-          <p>Só uma ideia nova: <code>alt-claude --use rota</code>. Seus outros argumentos continuam seguindo viagem.</p>
-        </details>
-        <details>
-          <summary>Minhas credenciais ficam onde?<span aria-hidden="true"></span></summary>
-          <p>Fora do repositório, em arquivos locais com permissões restritas. O README mostra a estrutura recomendada sem pedir que você cole segredo em lugar divertido.</p>
-        </details>
-        <details>
-          <summary>É para momentos específicos?<span aria-hidden="true"></span></summary>
-          <p>É para qualquer momento em que ter escolha pareça mais inteligente do que não ter. Curiosamente, são muitos.</p>
-        </details>
+        <details open><summary>Isso substitui o Claude Code?<span aria-hidden="true"></span></summary><p>Não. Claude Code continua sendo o harness. O alt-claude escolhe e governa as rotas por baixo dele.</p></details>
+        <details><summary>O que acontece quando uma sessão fica grande demais?<span aria-hidden="true"></span></summary><p>O perfil tem um limite seguro. No resume, o alt-claude mede o JSONL local e pode bloquear antes que o provider devolva erro. Se já passou do ponto, use <code>alt-claude compact SESSION_ID</code>.</p></details>
+        <details><summary>Posso impedir um modelo de tocar um repositório?<span aria-hidden="true"></span></summary><p>Sim. <code>.alt-claude/config</code> pode negar profiles, providers e classes de privacidade. A política é verificada antes da chamada externa.</p></details>
+        <details><summary>Os modelos gratuitos são seguros para código privado?<span aria-hidden="true"></span></summary><p>Não assumimos isso. O catálogo separa <code>sensitive_ok</code>, <code>review</code> e <code>public_only</code>. O padrão é conservador.</p></details>
+        <details><summary>Os antigos alt-claude-nemotron, alt-claude-laguna etc. sumiram?<span aria-hidden="true"></span></summary><p>Não. Continuam instalados como atalhos de compatibilidade, mas delegam para a interface unificada.</p></details>
       </div>
     </section>
 
-    <section class="closing-section">
-      <div class="closing-doodle" aria-hidden="true">↘</div>
-      <p class="eyebrow">ALT—CLAUDE</p>
-      <h2>Mantenha uma porta<br><em>entreaberta.</em></h2>
-      <p>Seu terminal não precisa conhecer a palavra “beco”.</p>
-      <a class="button button-light" href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer">
-        <span>Abrir no GitHub</span><span class="button-arrow" aria-hidden="true">↗</span>
-      </a>
-    </section>
+    <section class="closing-section"><div class="closing-doodle" aria-hidden="true">↘</div><p class="eyebrow">ALT—CLAUDE</p><h2>Mais rotas.<br><em>Mais controle.</em></h2><p>Escolher modelo é só metade do problema. Contexto, recuperação e privacidade também fazem parte da rota.</p><a class="button button-light" href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer"><span>Abrir no GitHub</span><span class="button-arrow" aria-hidden="true">↗</span></a></section>
   </main>
 
-  <footer class="site-footer">
-    <a class="brand brand-footer" href="#topo"><span class="brand-mark">a/</span><span>alt—claude</span></a>
-    <p>Feito para quem gosta de opções<br>e de parecer que previu tudo.</p>
-    <div class="footer-links">
-      <a href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer">GitHub ↗</a>
-      <a href="https://github.com/EDortta/alt-claude/blob/main/README.md" target="_blank" rel="noreferrer">Documentação ↗</a>
-    </div>
-    <span class="footer-copy">© <span id="year"></span> alt-claude. Sem becos.</span>
-  </footer>
+  <footer class="site-footer"><a class="brand brand-footer" href="#topo"><span class="brand-mark">a/</span><span>alt—claude</span></a><p>Uma interface para vários modelos,<br>com guardrails onde realmente importam.</p><div class="footer-links"><a href="https://github.com/EDortta/alt-claude" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://github.com/EDortta/alt-claude/blob/main/README.md" target="_blank" rel="noreferrer">Documentação ↗</a></div><span class="footer-copy">© <span id="year"></span> alt-claude.</span></footer>
 
-  <div class="toast" role="status" aria-live="polite">Comando copiado. Finja que decorou.</div>
+  <div class="toast" role="status" aria-live="polite">Comando copiado.</div>
 </body>
 </html>

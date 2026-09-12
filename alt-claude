@@ -7,6 +7,9 @@ PROFILE_BIN="${ALT_CLAUDE_PROFILE_BIN:-$SELF_DIR/alt-claude-profile}"
 COMPACTOR="${ALT_CLAUDE_COMPACTOR:-$SELF_DIR/alt-claude-session-compact}"
 PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles}"
 
+[[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || COMPACTOR="$SELF_DIR/tools/session-compact.py"
+[[ -d "$SELF_DIR/profiles" ]] && PROFILE_DIR="$SELF_DIR/profiles"
+
 usage_extra() {
   cat <<'EOF'
 alt-claude unified commands:
@@ -14,6 +17,7 @@ alt-claude unified commands:
   alt-claude profiles
   alt-claude compact SESSION_ID [-o handoff.md]
 
+Compatibility shortcuts such as alt-claude-north-mini-code still work.
 Legacy provider mode remains available:
   alt-claude --use PROVIDER [options]
 EOF
@@ -22,16 +26,18 @@ EOF
 case "${1:-}" in
   compact)
     shift
-    [[ -x "$COMPACTOR" || -f "$COMPACTOR" ]] || { echo "Erro: compactador offline não instalado: $COMPACTOR" >&2; exit 2; }
+    [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || { echo "Erro: compactador offline não encontrado: $COMPACTOR" >&2; exit 2; }
     exec python3 "$COMPACTOR" "$@"
     ;;
   profiles)
     shopt -s nullglob
+    printf '%-24s %-12s %-12s %-12s %s\n' "PROFILE" "STATUS" "CONTEXT" "SAFE" "MODEL"
     for f in "$PROFILE_DIR"/*.env; do
+      unset MODEL STATUS CONTEXT_WINDOW SAFE_CONTEXT_TOKENS DISPLAY_NAME
+      # shellcheck disable=SC1090
+      source "$f"
       name="$(basename "$f" .env)"
-      display="$(sed -n 's/^DISPLAY_NAME="\(.*\)"/\1/p' "$f" | head -1)"
-      status="$(sed -n 's/^STATUS=//p' "$f" | head -1)"
-      printf '%-24s %-12s %s\n' "$name" "${status:-unknown}" "${display:-}"
+      printf '%-24s %-12s %-12s %-12s %s\n' "$name" "${STATUS:-unknown}" "${CONTEXT_WINDOW:-N/D}" "${SAFE_CONTEXT_TOKENS:-N/D}" "${MODEL:-N/D}"
     done
     exit 0
     ;;

@@ -12,21 +12,199 @@ PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/alt-
 [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || POLICY_BIN="$SELF_DIR/tools/project-policy.py"
 [[ -d "$SELF_DIR/profiles" ]] && PROFILE_DIR="$SELF_DIR/profiles"
 
-usage_extra() {
+usage_main() {
   cat <<'EOF'
-alt-claude unified commands:
-  alt-claude --profile NAME [--yolo] [--resume ID] [claude args]
+alt-claude — Claude Code com providers/modelos alternativos
+
+USO PRINCIPAL
+  alt-claude --profile NAME [opções] [argumentos do Claude Code]
   alt-claude profiles
-  alt-claude compact SESSION_ID [-o handoff.md]
-  alt-claude policy init [standard|sensitive]
+  alt-claude compact SESSION_ID [opções]
+  alt-claude policy COMANDO [argumentos]
+  alt-claude --use PROVIDER [opções] [argumentos do Claude Code]
+
+ATALHOS
+  alt-claude-<perfil> [opções]
+
+  Os atalhos são compatibilidade/conveniência. Exemplo:
+    alt-claude-north-mini-code --yolo
+  equivale a:
+    alt-claude --profile north-mini-code --yolo
+
+OPÇÕES COMUNS
+  --profile NAME           usa um perfil/modelo do catálogo
+  --use PROVIDER           usa provider diretamente
+  --model MODEL            sobrescreve o modelo no modo --use
+  --yolo                   não pede aprovação para ações do Claude Code
+                           (traduzido para --dangerously-skip-permissions)
+  --resume ID              retoma uma sessão Claude Code existente
+  --resume=ID              mesma coisa
+  --usage                  mostra saúde/uso das credenciais configuradas
+  --list                   lista providers do core
+  -h, --help               esta ajuda
+
+COMANDOS
+  profiles                 lista perfis, separados por classe de privacidade
+  compact SESSION_ID       cria handoff Markdown OFFLINE de uma sessão
+  policy init standard     cria .alt-claude/config padrão no projeto
+  policy init sensitive    cria política restritiva para código sensível
+  policy show              mostra a política efetiva do projeto atual
+  policy deny profile X    bloqueia um perfil neste projeto
+  policy deny provider X   bloqueia um provider neste projeto
+  policy allow profile X   libera explicitamente um perfil
+
+PRIVACIDADE DOS PERFIS
+  sensitive_ok   adequado para projeto sensível segundo a política cadastrada
+  review         revise termos/roteamento antes de usar código sensível
+  public_only    NÃO usar com código privado ou sensível
+
+  Veja a classificação atual com:
+    alt-claude profiles
+
+POLÍTICA POR PROJETO
+  O arquivo é:
+    <raiz-do-git>/.alt-claude/config
+
+  Ele é declarativo e nunca é executado como shell.
+
+  Exemplo para projeto sensível:
+    alt-claude policy init sensitive
+    alt-claude policy show
+
+  Nesse modo, perfis que não sejam sensitive_ok são bloqueados ANTES da
+  chamada ao provider, salvo uma liberação explícita do perfil.
+
+CONTEXTO E COMPACTAÇÃO
+  Cada perfil pode declarar janela de contexto, margem segura e percentual
+  de auto-compactação. Ao usar --resume, alt-claude bloqueia sessões já acima
+  da margem segura antes de enviar uma requisição que certamente falharia.
+
+  Recuperação offline:
+    alt-claude compact SESSION_ID
+
+  Depois inicie uma sessão nova, por exemplo:
+    alt-claude --profile north-mini-code --yolo \
+      "Leia claude-handoff-SESSION_ID.md, confira o repositório e continue."
+
+FALLBACK DE MODELOS GRATUITOS
+  Perfis OpenRouter :free fazem um preflight mínimo. Se a rota gratuita não
+  estiver disponível, alt-claude pode cair explicitamente para Codex e depois
+  Copilot, quando configurados. Nunca troca silenciosamente para API paga.
+
+  Para desativar fallback:
+    ALT_CLAUDE_NO_FALLBACK=1 alt-claude --profile north-mini-code
+
+EXEMPLOS
+  alt-claude profiles
+  alt-claude --profile north-mini-code --yolo
+  alt-claude --profile north-mini-code --yolo --resume SESSION_ID
+  alt-claude --profile nemotron --yolo
+  alt-claude --use codex --yolo
+  alt-claude --use copilot --resume SESSION_ID
+  alt-claude --usage
+  alt-claude compact SESSION_ID
+  alt-claude policy init sensitive
+  alt-claude policy deny profile inkling
+
+AJUDA POR ASSUNTO
+  alt-claude help profiles
+  alt-claude help compact
+  alt-claude help policy
+  alt-claude help providers
+
+Variáveis avançadas e detalhes de providers estão documentados no repositório.
+EOF
+}
+
+usage_profiles() {
+  cat <<'EOF'
+alt-claude profiles
+
+Lista todos os perfis instalados e os separa em três blocos de privacidade:
+  1. sensitive_ok
+  2. review
+  3. public_only
+
+Também mostra status, janela de contexto, margem segura e model ID.
+
+Use um perfil com:
+  alt-claude --profile NAME --yolo
+
+Os antigos comandos alt-claude-NAME continuam disponíveis como atalhos.
+EOF
+}
+
+usage_compact() {
+  cat <<'EOF'
+alt-claude compact SESSION_ID [opções]
+
+Lê a sessão Claude Code local (JSONL) e cria um handoff Markdown SEM chamar
+qualquer LLM/API. Útil quando /compact já não cabe na janela do modelo.
+
+Exemplos:
+  alt-claude compact 1234-abcd
+  alt-claude compact 1234-abcd -o handoff.md
+  alt-claude compact 1234-abcd --turns 30
+
+O arquivo gerado contém, entre outros:
+  - diretório e branch observados;
+  - arquivos/caminhos recorrentes;
+  - comandos recentes;
+  - conversa recente reduzida;
+  - instrução de continuidade.
+
+Para todas as opções:
+  alt-claude compact --help
+EOF
+}
+
+usage_policy() {
+  cat <<'EOF'
+alt-claude policy COMANDO [argumentos]
+
+Política local de segurança por projeto. O arquivo fica em:
+  <git-root>/.alt-claude/config
+
+Comandos:
+  alt-claude policy init standard
+  alt-claude policy init sensitive
   alt-claude policy show
   alt-claude policy deny profile NAME
   alt-claude policy deny provider NAME
   alt-claude policy allow profile NAME
 
-Compatibility shortcuts such as alt-claude-north-mini-code still work.
-Legacy provider mode remains available:
-  alt-claude --use PROVIDER [options]
+Exemplo:
+  cd ~/Projects/projeto-confidencial
+  alt-claude policy init sensitive
+  alt-claude policy deny provider openrouter
+  alt-claude policy show
+
+A política é aplicada antes de qualquer chamada ao modelo.
+O arquivo config é somente dados; não é executado com source/eval.
+EOF
+}
+
+usage_providers() {
+  cat <<'EOF'
+Modo provider direto:
+  alt-claude --use PROVIDER [opções] [args Claude Code]
+
+Providers conhecidos pelo core:
+  copilot
+  codex
+  openrouter
+  kimi
+  grok
+  nvidia
+
+Exemplos:
+  alt-claude --use codex --yolo
+  alt-claude --use copilot --resume SESSION_ID
+  alt-claude --use openrouter --model vendor/model
+  alt-claude --usage
+
+Observação: perfis são preferíveis para modelos específicos porque carregam
+política de contexto, privacidade e demais metadados operacionais.
 EOF
 }
 
@@ -61,11 +239,21 @@ check_direct_provider_policy() {
   done
   [[ -n "$provider" ]] || return 0
   [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || return 0
-  # Direct-provider privacy is not inferred; project deny_provider still applies.
   python3 "$POLICY_BIN" check --provider "$provider" --privacy sensitive_ok
 }
 
 case "${1:-}" in
+  help)
+    case "${2:-}" in
+      "") usage_main ;;
+      profiles) usage_profiles ;;
+      compact) usage_compact ;;
+      policy) usage_policy ;;
+      providers|provider) usage_providers ;;
+      *) echo "Assunto desconhecido: ${2}" >&2; echo >&2; usage_main; exit 2 ;;
+    esac
+    exit 0
+    ;;
   compact)
     shift
     [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || { echo "Erro: compactador offline não encontrado: $COMPACTOR" >&2; exit 2; }
@@ -77,6 +265,7 @@ case "${1:-}" in
     exec python3 "$POLICY_BIN" "$@"
     ;;
   profiles)
+    if [[ "${2:-}" == "-h" || "${2:-}" == "--help" ]]; then usage_profiles; exit 0; fi
     show_profiles_group sensitive_ok "=== ADEQUADOS PARA PROJETOS SENSÍVEIS (verificados pelo alt-claude) ==="
     show_profiles_group review "=== REVISAR PRIVACIDADE ANTES DE USAR CÓDIGO SENSÍVEL ==="
     show_profiles_group public_only "=== NÃO USAR COM CÓDIGO SENSÍVEL / PRIVADO ==="
@@ -93,10 +282,9 @@ case "${1:-}" in
     profile="${1#*=}"; shift
     exec "$PROFILE_BIN" "$profile" "$@"
     ;;
-  -h|--help)
-    usage_extra
-    echo
-    exec "$CORE" --help
+  -h|--help|"")
+    usage_main
+    exit 0
     ;;
   *)
     check_direct_provider_policy "$@"

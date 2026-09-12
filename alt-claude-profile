@@ -23,14 +23,25 @@ else
     exit 2
 fi
 
+# Profile files are trusted project data installed with alt-claude.
 # shellcheck disable=SC1090
 source "$PROFILE_FILE"
 
 : "${PROVIDER:?perfil sem PROVIDER: $PROFILE_FILE}"
 : "${MODEL:?perfil sem MODEL: $PROFILE_FILE}"
+PRIVACY="${PRIVACY:-review}"
 
 ALT_CLAUDE_BIN="${ALT_CLAUDE_BIN:-alt-claude}"
 COMPACTOR="${ALT_CLAUDE_COMPACTOR:-$SELF_DIR/alt-claude-session-compact}"
+POLICY_BIN="${ALT_CLAUDE_POLICY_BIN:-$SELF_DIR/alt-claude-policy}"
+[[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || POLICY_BIN="$SELF_DIR/tools/project-policy.py"
+
+project_policy_guard() {
+    [[ "${ALT_CLAUDE_IGNORE_PROJECT_POLICY:-0}" != "1" ]] || return 0
+    [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+    python3 "$POLICY_BIN" check --profile "$PROFILE_NAME" --provider "$PROVIDER" --privacy "$PRIVACY"
+}
 
 # Best-effort proactive compaction. Claude Code has had regressions around this
 # knob, so a second, deterministic guard is applied before --resume below.
@@ -133,6 +144,7 @@ fallback_provider() {
     exec "$ALT_CLAUDE_BIN" --use "$provider" "$@"
 }
 
+project_policy_guard
 context_resume_guard "$@"
 
 if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ) ]]; then

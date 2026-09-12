@@ -14,9 +14,14 @@ fi
 mkdir -p "$TARGET_DIR" "$PROFILE_DIR"
 
 install -m 0755 "$ROOT/alt-claude" "$TARGET_DIR/alt-claude"
+install -m 0755 "$ROOT/alt-claude-core" "$TARGET_DIR/alt-claude-core"
 install -m 0755 "$ROOT/alt-claude-profile" "$TARGET_DIR/alt-claude-profile"
+install -m 0755 "$ROOT/tools/session-compact.py" "$TARGET_DIR/alt-claude-session-compact"
+
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude"
+printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-core"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-profile"
+printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-session-compact"
 
 shopt -s nullglob
 profiles=("$ROOT"/profiles/*.env)
@@ -35,7 +40,7 @@ for source in "${profiles[@]}"; do
 #!/usr/bin/env bash
 set -euo pipefail
 SELF_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-exec "\$SELF_DIR/alt-claude-profile" "$name" "\$@"
+exec "\$SELF_DIR/alt-claude" --profile "$name" "\$@"
 EOF
     chmod 0755 "$launcher"
     printf 'Instalado: %s -> perfil %s\n' "$launcher" "$name"
@@ -47,4 +52,6 @@ case ":${PATH:-}:" in
 esac
 
 printf '\nPerfis instalados em: %s\n' "$PROFILE_DIR"
-printf 'Use: alt-claude-<perfil> [--yolo] [--resume SESSION_ID] [outros args]\n'
+printf 'Uso principal: alt-claude --profile <perfil> [--yolo] [--resume SESSION_ID]\n'
+printf 'Compatibilidade: alt-claude-<perfil> continua funcionando.\n'
+printf 'Recuperação offline: alt-claude compact SESSION_ID\n'

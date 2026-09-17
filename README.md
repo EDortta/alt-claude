@@ -250,6 +250,12 @@ alt-claude --usage
 
 `--user` remains accepted as a compatibility alias for `--use`.
 
+## Local worker capacity
+
+`alt-claude` can also participate in a planner/worker topology where Codex or Copilot plans and reviews while the T610 executes bounded local implementation and other background development jobs.
+
+The operating limits, measured performance, delegation rules, resource policy and recommended non-LLM uses of the T610 are documented in [docs/local-worker-capacity.md](docs/local-worker-capacity.md).
+
 ## Credentials
 
 Default root:
@@ -265,7 +271,7 @@ chmod 700 ~/.config/credentials/personal/ai
 chmod 600 ~/.config/credentials/personal/ai/*.env
 ```
 
-See [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), and [docs/usage.md](docs/usage.md).
+See [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), [docs/usage.md](docs/usage.md), and [docs/local-worker-capacity.md](docs/local-worker-capacity.md).
 
 ## Tests
 

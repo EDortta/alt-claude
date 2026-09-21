@@ -12,6 +12,8 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_PROFILE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles"
 PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-$DEFAULT_PROFILE_DIR}"
 CREDENTIALS_DIR="${ALT_CLAUDE_CREDENTIALS_DIR:-$HOME/.config/credentials/personal/ai}"
+STATE_DIR="${ALT_CLAUDE_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/alt-claude}"
+OPENROUTER_FREE_EXHAUSTED_FILE="$STATE_DIR/openrouter-free-exhausted"
 
 if [[ -r "$SELF_DIR/profiles/${PROFILE_NAME}.env" ]]; then
     PROFILE_FILE="$SELF_DIR/profiles/${PROFILE_NAME}.env"
@@ -96,10 +98,32 @@ context_resume_guard() {
     fi
 }
 
+openrouter_free_exhausted_today() {
+    [[ -r "$OPENROUTER_FREE_EXHAUSTED_FILE" ]] || return 1
+    local cached_date today
+    cached_date="$(sed -n '1p' "$OPENROUTER_FREE_EXHAUSTED_FILE" 2>/dev/null || true)"
+    today="$(date -u +%Y-%m-%d)"
+    [[ "$cached_date" == "$today" ]]
+}
+
+mark_openrouter_free_exhausted() {
+    mkdir -p "$STATE_DIR"
+    chmod 700 "$STATE_DIR" 2>/dev/null || true
+    {
+        date -u +%Y-%m-%d
+        printf '%s\n' "free-models-per-day"
+    } >"$OPENROUTER_FREE_EXHAUSTED_FILE"
+    chmod 600 "$OPENROUTER_FREE_EXHAUSTED_FILE" 2>/dev/null || true
+}
+
 openrouter_free_preflight() {
     [[ "$PROVIDER" == "openrouter" ]] || return 0
     [[ "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ]] || return 0
     [[ "${ALT_CLAUDE_NO_FALLBACK:-0}" != "1" ]] || return 0
+
+    if openrouter_free_exhausted_today; then
+        return 75
+    fi
 
     local cred_file="${CREDENTIALS_DIR}/openrouter.env"
     [[ -r "$cred_file" ]] || return 1
@@ -130,11 +154,17 @@ PY
             https://openrouter.ai/api/v1/chat/completions \
             -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
             -H 'Content-Type: application/json' --data "$payload" 2>/dev/null || true)"
+
+        if [[ "$status" == "429" ]] && grep -Eqi 'free-models-per-day|rate limit exceeded.*free' "$tmp" 2>/dev/null; then
+            mark_openrouter_free_exhausted
+            rm -f "$tmp" || true
+            exit 75
+        fi
+
         rm -f "$tmp" || true
         [[ "$status" == "200" ]]
     )
 }
-
 fallback_provider() {
     local provider="$1"
     shift
@@ -148,7 +178,20 @@ project_policy_guard
 context_resume_guard "$@"
 
 if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ) ]]; then
-    if ! openrouter_free_preflight; then
+    preflight_status=0
+    set +e
+    openrouter_free_preflight
+    preflight_status=$?
+    set -e
+
+    if [[ $preflight_status -ne 0 ]]; then
+        if [[ $preflight_status -eq 75 ]]; then
+            echo "alt-claude: cota diária OpenRouter free esgotada (free-models-per-day)." >&2
+            echo "alt-claude: esta rota ficará em cache como esgotada até mudar o dia UTC." >&2
+        else
+            echo "alt-claude: OpenRouter free indisponível no preflight." >&2
+        fi
+
         if [[ "${ALT_CLAUDE_NO_FALLBACK:-0}" == "1" ]]; then
             echo "Erro: OpenRouter free indisponível e fallback desabilitado." >&2
             exit 75

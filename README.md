@@ -219,7 +219,11 @@ Named free profiles try OpenRouter first. A minimal preflight detects exhausted/
 codex -> copilot
 ```
 
+When OpenRouter answers with the daily free quota error `429 ... free-models-per-day`, `alt-claude` records a local marker under `${XDG_STATE_HOME:-~/.local/state}/alt-claude/`. Further launches during the same UTC day skip OpenRouter free immediately instead of spending another request on a route already known to be exhausted. The marker expires automatically when the UTC date changes.
+
 The fallback is announced and never silently selects a pay-as-you-go API. The model necessarily changes, while `--yolo`, `--resume` and other Claude arguments are preserved.
+
+A Claude Code session that is already running cannot transparently switch backend after an in-session 429 with the current direct OpenRouter route. Resume or relaunch through `alt-claude`; the next invocation performs the preflight, records the exhausted daily quota when applicable, and selects the fallback. Transparent mid-session failover would require a compatible local gateway that owns the request path.
 
 Disable fallback for diagnosis:
 

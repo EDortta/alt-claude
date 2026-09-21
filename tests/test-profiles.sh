@@ -80,6 +80,50 @@ EOF
 )
 [[ "$(cat "$CAPTURE")" == "$fallback_expected" ]] || { echo "Falha no fallback Codex" >&2; exit 1; }
 
+# Explicit daily free quota exhaustion is cached: the second invocation must not hit OpenRouter again.
+STATE_DIR="$TMP/state"
+CURL_COUNT="$TMP/curl-count"
+cat >"$TMP/curl" <<'EOF'
+#!/usr/bin/env bash
+count_file="${ALT_CLAUDE_TEST_CURL_COUNT:?}"
+count=0
+[[ -r "$count_file" ]] && count="$(cat "$count_file")"
+printf '%s\n' "$((count + 1))" >"$count_file"
+
+out=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o) out="$2"; shift 2 ;;
+        -w) shift 2 ;;
+        *) shift ;;
+    esac
+done
+[[ -n "$out" ]] && printf '%s\n' '{"error":{"message":"Rate limit exceeded: free-models-per-day"}}' >"$out"
+printf '429'
+EOF
+chmod +x "$TMP/curl"
+rm -rf "$STATE_DIR"
+rm -f "$CURL_COUNT"
+
+for sid in session-quota-1 session-quota-2; do
+    PATH="$TMP:$PATH" \
+    ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
+    ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
+    ALT_CLAUDE_TEST_CURL_COUNT="$CURL_COUNT" \
+    ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
+    ALT_CLAUDE_CREDENTIALS_DIR="$CREDS" \
+    ALT_CLAUDE_STATE_DIR="$STATE_DIR" \
+        "$BIN_DIR/alt-claude-nemotron" --resume "$sid" >"$TMP/quota-$sid.out" 2>"$TMP/quota-$sid.err"
+done
+
+[[ "$(cat "$CURL_COUNT")" == "1" ]] || { echo "Falha: quota diária deveria evitar novo preflight após cache" >&2; exit 1; }
+[[ "$(sed -n '1p' "$STATE_DIR/openrouter-free-exhausted")" == "$(date -u +%Y-%m-%d)" ]] || {
+    echo "Falha: cache diário OpenRouter inválido" >&2
+    exit 1
+}
+grep -q 'cota diária OpenRouter free esgotada' "$TMP/quota-session-quota-1.err"
+grep -q 'cota diária OpenRouter free esgotada' "$TMP/quota-session-quota-2.err"
+
 # Synthetic oversized session: North must refuse resume before hitting provider limit.
 SESSION_ID="session-oversized"
 SESSION_DIR="$TEST_HOME/.claude/projects/-tmp-project"

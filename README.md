@@ -241,6 +241,18 @@ bash tools/check-profiles.sh
 
 The check compares each OpenRouter profile with the live catalog and reports whether the model still exists, remains free, its current API context length, the declared context length and safe threshold.
 
+## Auto mode through gateways
+
+Claude Code's server-side auto-mode classifier requires gateways to pass fields such as `safeguards` and response data such as `safeguard_results` through unchanged. The current Codex proxy and OpenRouter routes used by `alt-claude` are not compatible with that pass-through contract.
+
+For those two routes, `alt-claude` sets:
+
+```bash
+CLAUDE_CODE_AUTO_MODE_SERVER=0
+```
+
+before Claude Code starts. Auto mode remains available, but classifier checks use Claude Code's own model requests and therefore consume the provider's normal quota. This avoids the failure mode where Bash commands are denied because the server-side classifier returned no verdict. Set `CLAUDE_CODE_AUTO_MODE_SERVER=1` explicitly only when testing a gateway that actually implements the classifier pass-through contract.
+
 ## Direct provider mode
 
 The original provider interface remains available:

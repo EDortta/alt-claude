@@ -625,6 +625,13 @@ start_codex() {
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="codex-local-proxy"
 
+    # claude-codex-proxy does not currently pass Claude Code's server-side
+    # safeguards/safeguard_results protocol through unchanged. Force the
+    # documented client-side classifier path so auto mode does not deny Bash
+    # merely because the gateway returned no safety verdict.
+    : "${CLAUDE_CODE_AUTO_MODE_SERVER:=0}"
+    export CLAUDE_CODE_AUTO_MODE_SERVER
+
     set_all_models "$selected_model"
 }
 
@@ -641,6 +648,11 @@ start_openrouter() {
     export CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK=1
     export ENABLE_TOOL_SEARCH=true
     export CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1
+
+    # OpenRouter currently does not expose Claude Code's server-side classifier
+    # pass-through contract. Use Claude Code's own classifier requests instead.
+    : "${CLAUDE_CODE_AUTO_MODE_SERVER:=0}"
+    export CLAUDE_CODE_AUTO_MODE_SERVER
 
     if [ -n "$MODEL" ]; then
         set_all_models "$MODEL"

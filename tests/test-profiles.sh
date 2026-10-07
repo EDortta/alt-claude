@@ -129,7 +129,7 @@ grep -q 'CLAUDE_CODE_AUTO_MODE_SERVER:=0' "$ROOT/alt-claude-core"
 python3 - "$ROOT/alt-claude-core" <<'PY'
 from pathlib import Path
 s=Path(__import__('sys').argv[1]).read_text(encoding='utf-8')
-for fn in ('start_codex()', 'start_openrouter()'):
+for fn in ('start_copilot()', 'start_codex()', 'start_openrouter()'):
     pos=s.find(fn)
     if pos < 0:
         raise SystemExit(f'missing {fn}')

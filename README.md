@@ -245,7 +245,7 @@ The check compares each OpenRouter profile with the live catalog and reports whe
 
 Claude Code's server-side auto-mode classifier requires gateways to pass fields such as `safeguards` and response data such as `safeguard_results` through unchanged. The current Codex proxy and OpenRouter routes used by `alt-claude` are not compatible with that pass-through contract.
 
-For those two routes, `alt-claude` sets:
+For the current Copilot (`127.0.0.1:4141`), Codex (`127.0.0.1:8765`) and OpenRouter routes, `alt-claude` sets:
 
 ```bash
 CLAUDE_CODE_AUTO_MODE_SERVER=0

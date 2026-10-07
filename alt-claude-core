@@ -589,6 +589,12 @@ process.stdin.on("end", () => {
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="copilot-local"
 
+    # copilot-api at 127.0.0.1:4141 is not currently compatible with Claude
+    # Code's server-side safeguards/safeguard_results contract. Keep auto mode
+    # usable by forcing Claude Code's client-side classifier path.
+    : "${CLAUDE_CODE_AUTO_MODE_SERVER:=0}"
+    export CLAUDE_CODE_AUTO_MODE_SERVER
+
     set_all_models "$selected_model"
 }
 

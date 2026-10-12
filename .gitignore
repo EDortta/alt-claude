@@ -4,3 +4,6 @@
 credentials/
 secrets/
 *.log
+
+# Local upstream reference clone; not vendored yet.
+FreeLLM-API-KeyHub/

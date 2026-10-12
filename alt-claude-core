@@ -42,6 +42,12 @@ Providers:
   kimi
   grok
   nvidia
+  groq
+  cohere
+  google
+  kilo
+  freeinference
+  aihubmix
 
 alt-claude options:
   --use PROVIDER
@@ -481,7 +487,13 @@ Providers disponíveis:
   openrouter    OpenRouter Anthropic-compatible
   kimi          Kimi Code Anthropic-compatible
   grok          xAI API via bridge Anthropic local
-  nvidia        requer NIM Anthropic-compatible ou bridge
+  nvidia        NVIDIA NIM free endpoints via bridge local
+  groq          Groq free plan via bridge local
+  cohere        Cohere trial/free models via bridge local
+  google        Google AI Studio free tier via bridge local
+  kilo          Kilo Gateway anonymous free lane via bridge local
+  freeinference FreeInference Anthropic-compatible
+  aihubmix      AIHubMix free models Anthropic-compatible
 EOF
             exit 0
             ;;
@@ -748,38 +760,105 @@ start_grok() {
     set_all_models "$selected_model"
 }
 
-start_nvidia() {
-    load_credentials nvidia
+start_openai_compat() {
+    local provider="$1"
+    local base_url="$2"
+    local api_key="$3"
+    local default_model="$4"
+    local port="$5"
+    local selected_model="\${MODEL:-$default_model}"
+    local bridge
+    local local_base="http://127.0.0.1:\${port}"
+    local log="\${XDG_RUNTIME_DIR:-/tmp}/alt-claude-\${provider}.log"
 
-    : "${NVIDIA_API_KEY:?NVIDIA_API_KEY não definida}"
+    bridge="\${ALT_CLAUDE_OPENAI_BRIDGE:-}"
+    if [[ -z "$bridge" ]]; then
+        bridge="$(command -v alt-claude-openai-bridge 2>/dev/null || true)"
+    fi
+    [[ -n "$bridge" && -x "$bridge" ]] || die "bridge OpenAI-compatible não encontrado. Rode ./install.sh novamente."
 
-    if [ -z "${NVIDIA_ANTHROPIC_BASE_URL:-}" ]; then
-        cat >&2 <<'EOF'
-NVIDIA_API_KEY encontrada, mas nenhum endpoint Anthropic-compatible foi configurado.
+    have curl || die "curl não está no PATH"
+    have python3 || die "python3 não está no PATH"
 
-A chave do NVIDIA API Catalog, sozinha, não basta para o Claude Code.
-
-Se houver um NIM com /v1/messages, configure por exemplo:
-
-  NVIDIA_ANTHROPIC_BASE_URL="http://servidor:8000"
-  NVIDIA_MODEL="publisher/model"
-
-no arquivo nvidia.env.
-
-Caso contrário é necessário um bridge OpenAI -> Anthropic.
-EOF
-        exit 2
+    local pids
+    pids="$(pgrep -f "alt-claude-openai-bridge.*--port \${port}" 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+        kill $pids 2>/dev/null || true
+        sleep 0.2
     fi
 
-    : "${NVIDIA_MODEL:?NVIDIA_MODEL não definida}"
+    OPENAI_COMPAT_NAME="$provider" \
+    OPENAI_COMPAT_BASE_URL="$base_url" \
+    OPENAI_COMPAT_API_KEY="$api_key" \
+    OPENAI_COMPAT_MODEL="$selected_model" \
+    nohup "$bridge" --host 127.0.0.1 --port "$port" >"$log" 2>&1 &
 
-    local selected_model="${MODEL:-$NVIDIA_MODEL}"
+    if ! wait_http "\${local_base}/v1/models" 50; then
+        echo "Gateway \${provider} não iniciou." >&2
+        echo "Log: $log" >&2
+        tail -n 40 "$log" 2>/dev/null || true
+        exit 1
+    fi
 
-    export ANTHROPIC_BASE_URL="$NVIDIA_ANTHROPIC_BASE_URL"
-    export ANTHROPIC_API_KEY="nvidia-nim"
-    export ANTHROPIC_CUSTOM_MODEL_OPTION="$selected_model"
-
+    export ANTHROPIC_BASE_URL="$local_base"
+    export ANTHROPIC_API_KEY="\${provider}-local-bridge"
+    export CLAUDE_CODE_AUTO_MODE_SERVER=0
     set_all_models "$selected_model"
+}
+
+start_anthropic_native() {
+    local provider="$1"
+    local base_url="$2"
+    local api_key="$3"
+    local default_model="$4"
+    local selected_model="\${MODEL:-$default_model}"
+
+    export ANTHROPIC_BASE_URL="$base_url"
+    export ANTHROPIC_API_KEY="$api_key"
+    export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    set_all_models "$selected_model"
+}
+
+start_groq() {
+    load_credentials groq
+    : "\${GROQ_API_KEY:?GROQ_API_KEY não definida}"
+    start_openai_compat groq "https://api.groq.com/openai/v1" "$GROQ_API_KEY" "openai/gpt-oss-120b" "\${ALT_CLAUDE_GROQ_PORT:-8791}"
+}
+
+start_cohere() {
+    load_credentials cohere
+    : "\${COHERE_API_KEY:?COHERE_API_KEY não definida}"
+    start_openai_compat cohere "https://api.cohere.com/compatibility/v1" "$COHERE_API_KEY" "north-mini-code-1-0" "\${ALT_CLAUDE_COHERE_PORT:-8792}"
+}
+
+start_google() {
+    load_credentials google
+    local key="\${GOOGLE_AI_STUDIO_API_KEY:-\${GEMINI_API_KEY:-}}"
+    [[ -n "$key" ]] || die "GOOGLE_AI_STUDIO_API_KEY/GEMINI_API_KEY não definida"
+    start_openai_compat google "https://generativelanguage.googleapis.com/v1beta/openai" "$key" "gemini-3.8-flash" "\${ALT_CLAUDE_GOOGLE_PORT:-8793}"
+}
+
+start_nvidia() {
+    load_credentials nvidia
+    local key="\${NVIDIA_NIM_API_KEY:-\${NVIDIA_API_KEY:-}}"
+    [[ -n "$key" ]] || die "NVIDIA_NIM_API_KEY/NVIDIA_API_KEY não definida"
+    start_openai_compat nvidia "https://integrate.api.nvidia.com/v1" "$key" "deepseek-ai/deepseek-v4.1-flash" "\${ALT_CLAUDE_NVIDIA_PORT:-8794}"
+}
+
+start_kilo() {
+    start_openai_compat kilo "https://api.kilo.ai/api/gateway" "" "cohere/north-mini-code:free" "\${ALT_CLAUDE_KILO_PORT:-8795}"
+}
+
+start_freeinference() {
+    load_credentials freeinference
+    : "\${FREEINFERENCE_API_KEY:?FREEINFERENCE_API_KEY não definida}"
+    start_anthropic_native freeinference "https://freeinference.org/anthropic" "$FREEINFERENCE_API_KEY" "glm-5.3-flash"
+}
+
+start_aihubmix() {
+    load_credentials aihubmix
+    : "\${AIHUBMIX_API_KEY:?AIHUBMIX_API_KEY não definida}"
+    start_anthropic_native aihubmix "https://aihubmix.com" "$AIHUBMIX_API_KEY" "coding-glm-5.3-flash-free"
 }
 
 case "$USE" in
@@ -805,6 +884,30 @@ case "$USE" in
 
     nvidia)
         start_nvidia
+        ;;
+
+    groq)
+        start_groq
+        ;;
+
+    cohere)
+        start_cohere
+        ;;
+
+    google)
+        start_google
+        ;;
+
+    kilo)
+        start_kilo
+        ;;
+
+    freeinference)
+        start_freeinference
+        ;;
+
+    aihubmix)
+        start_aihubmix
         ;;
 
     *)

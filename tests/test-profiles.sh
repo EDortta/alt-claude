@@ -139,6 +139,7 @@ rm -rf "$STATE_DIR"
 rm -f "$CURL_COUNT"
 
 for sid in session-quota-1 session-quota-2; do
+    set +e
     PATH="$TMP:$PATH" \
     ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
     ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
@@ -147,6 +148,9 @@ for sid in session-quota-1 session-quota-2; do
     ALT_CLAUDE_CREDENTIALS_DIR="$CREDS" \
     ALT_CLAUDE_STATE_DIR="$STATE_DIR" \
         "$BIN_DIR/alt-claude-nemotron" --resume "$sid" >"$TMP/quota-$sid.out" 2>"$TMP/quota-$sid.err"
+    quota_status=$?
+    set -e
+    [[ $quota_status -eq 75 ]] || { echo "Falha: quota free esgotada deveria retornar 75" >&2; exit 1; }
 done
 
 [[ "$(cat "$CURL_COUNT")" == "1" ]] || { echo "Falha: quota diária deveria evitar novo preflight após cache" >&2; exit 1; }

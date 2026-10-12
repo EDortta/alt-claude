@@ -17,6 +17,7 @@ import time
 import uuid
 import urllib.error
 import urllib.request
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -187,7 +188,7 @@ def _request_xai(payload: dict[str, Any]) -> dict[str, Any]:
     if isinstance(max_tokens, int) and max_tokens > 0:
         body["max_tokens"] = max_tokens
 
-    if REASONING_EFFORT:
+    if REASONING_EFFORT and str(model).startswith("grok-4."):
         body["reasoning_effort"] = REASONING_EFFORT
 
     req = urllib.request.Request(
@@ -280,18 +281,20 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        if self.path.rstrip("/") == "/v1/models":
+        path = urllib.parse.urlparse(self.path).path.rstrip("/")
+        if path == "/v1/models":
             self._json(200, {
                 "object": "list",
                 "data": [{"id": DEFAULT_MODEL, "object": "model", "owned_by": "xai"}],
             })
             return
-        if self.path.rstrip("/") in {"", "/health", "/v1/health"}:
+        if path in {"", "/health", "/v1/health"}:
             self._json(200, {"ok": True, "model": DEFAULT_MODEL})
             return
         self._json(404, {"error": {"type": "not_found_error", "message": "not found"}})
 
     def do_POST(self) -> None:
+        path = urllib.parse.urlparse(self.path).path.rstrip("/")
         try:
             length = int(self.headers.get("content-length", "0"))
             payload = json.loads(self.rfile.read(length) or b"{}")
@@ -299,7 +302,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"type": "error", "error": {"type": "invalid_request_error", "message": str(exc)}})
             return
 
-        if self.path.rstrip("/") == "/v1/messages/count_tokens":
+        if path == "/v1/messages/count_tokens":
             # Conservative local estimate. Claude Code mainly needs a bounded
             # count here; actual billing usage comes from xAI responses.
             text = json.dumps(payload.get("messages") or [], ensure_ascii=False)
@@ -307,7 +310,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"input_tokens": max(1, len(text) // 4)})
             return
 
-        if self.path.rstrip("/") != "/v1/messages":
+        if path != "/v1/messages":
             self._json(404, {"type": "error", "error": {"type": "not_found_error", "message": "not found"}})
             return
 

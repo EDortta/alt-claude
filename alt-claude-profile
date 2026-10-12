@@ -119,8 +119,6 @@ mark_openrouter_free_exhausted() {
 openrouter_free_preflight() {
     [[ "$PROVIDER" == "openrouter" ]] || return 0
     [[ "$MODEL" == *":free" || "$MODEL" == "openrouter/free" ]] || return 0
-    [[ "${ALT_CLAUDE_NO_FALLBACK:-0}" != "1" ]] || return 0
-
     if openrouter_free_exhausted_today; then
         return 75
     fi
@@ -169,8 +167,8 @@ fallback_provider() {
     local provider="$1"
     shift
     command -v "$ALT_CLAUDE_BIN" >/dev/null 2>&1 || return 1
-    echo "alt-claude: OpenRouter free indisponível; usando fallback '${provider}'." >&2
-    echo "alt-claude: o modelo mudou. Nenhuma API paga será usada silenciosamente." >&2
+    echo "alt-claude: OpenRouter free indisponível; fallback explícito autorizado para '${provider}'." >&2
+    echo "alt-claude: o modelo mudou por solicitação explícita de ALT_CLAUDE_ALLOW_FALLBACK=1." >&2
     exec "$ALT_CLAUDE_BIN" --use "$provider" "$@"
 }
 
@@ -192,10 +190,14 @@ if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "open
             echo "alt-claude: OpenRouter free indisponível no preflight." >&2
         fi
 
-        if [[ "${ALT_CLAUDE_NO_FALLBACK:-0}" == "1" ]]; then
-            echo "Erro: OpenRouter free indisponível e fallback desabilitado." >&2
+        # Free profiles fail closed by default. Choosing a :free profile must
+        # never consume Codex/Copilot quota unless the caller explicitly opts in.
+        if [[ "${ALT_CLAUDE_ALLOW_FALLBACK:-0}" != "1" || "${ALT_CLAUDE_NO_FALLBACK:-0}" == "1" ]]; then
+            echo "Erro: modelo gratuito indisponível; nenhum provider pago/por assinatura será usado automaticamente." >&2
+            echo "Para permitir fallback explicitamente: ALT_CLAUDE_ALLOW_FALLBACK=1 ..." >&2
             exit 75
         fi
+
         IFS=',' read -r -a fallbacks <<< "${FALLBACK_PROVIDERS:-codex,copilot}"
         for provider in "${fallbacks[@]}"; do
             provider="${provider//[[:space:]]/}"
@@ -209,8 +211,7 @@ if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "open
                     ;;
             esac
         done
-        echo "Erro: OpenRouter free indisponível e nenhum fallback local configurado está utilizável." >&2
-        echo "Tente diretamente: alt-claude --use codex --yolo" >&2
+        echo "Erro: fallback foi autorizado, mas nenhum provider configurado está utilizável." >&2
         exit 75
     fi
 fi

@@ -43,6 +43,7 @@ Experimental:
 - `inkling` — ~1M / 800K.
 - `deepseek-v4-flash` — ~1M / 800K.
 - `glm-5.3-flash` — ~1M / 800K.
+- `grok` — xAI `grok-build-0.1` through the local Anthropic bridge; 256K / 180K; pay-as-you-go.
 - `free` — conservative 262K / 170K because the actual routed model varies.
 
 Experimental means wired and catalog-validated, not yet promoted by repeated real repository work.

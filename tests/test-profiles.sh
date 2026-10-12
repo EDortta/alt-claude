@@ -12,7 +12,7 @@ CREDS="$TMP/credentials"
 TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
-python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py"
+python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/xai-anthropic-bridge.py"
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash
@@ -129,13 +129,39 @@ grep -q 'export CLAUDE_CODE_AUTO_MODE_SERVER=0' "$ROOT/alt-claude-core"
 python3 - "$ROOT/alt-claude-core" <<'PY'
 from pathlib import Path
 s=Path(__import__('sys').argv[1]).read_text(encoding='utf-8')
-for fn in ('start_copilot()', 'start_codex()', 'start_openrouter()'):
+for fn in ('start_copilot()', 'start_codex()', 'start_openrouter()', 'start_grok()'):
     pos=s.find(fn)
     if pos < 0:
         raise SystemExit(f'missing {fn}')
     block=s[pos:s.find('\n}', pos)+2]
     if 'export CLAUDE_CODE_AUTO_MODE_SERVER=0' not in block:
         raise SystemExit(f'{fn} does not force client-side auto classifier')
+PY
+
+# Grok bridge translates Anthropic messages/tools into xAI/OpenAI-compatible structures without network access.
+python3 - "$ROOT/tools/xai-anthropic-bridge.py" <<'PY'
+import importlib.util, json, sys
+path=sys.argv[1]
+spec=importlib.util.spec_from_file_location("xai_bridge", path)
+mod=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+payload={
+    "system":"You are a coding assistant.",
+    "messages":[
+        {"role":"user","content":[{"type":"text","text":"Read status"}]},
+        {"role":"assistant","content":[{"type":"tool_use","id":"tool_1","name":"get_status","input":{"repo":"demo"}}]},
+        {"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_1","content":"clean"}]},
+    ],
+    "tools":[{"name":"get_status","description":"repo status","input_schema":{"type":"object","properties":{"repo":{"type":"string"}}}}],
+    "tool_choice":{"type":"auto"},
+}
+msgs=mod._messages_to_openai(payload)
+assert msgs[0] == {"role":"system","content":"You are a coding assistant."}
+assert any(m.get("role")=="assistant" and m.get("tool_calls") for m in msgs)
+assert any(m.get("role")=="tool" and m.get("tool_call_id")=="tool_1" for m in msgs)
+tools=mod._tools_to_openai(payload)
+assert tools[0]["function"]["name"]=="get_status"
+assert mod._tool_choice_to_openai(payload["tool_choice"])=="auto"
 PY
 
 # Synthetic oversized session: North must refuse resume before hitting provider limit.
@@ -184,7 +210,7 @@ for profile in "$ROOT"/profiles/*.env; do
     )
 done
 
-for launcher in laguna nemotron north-mini-code laguna-xs nemotron-lightning nex-pro nex-mini inkling-small inkling deepseek-v4-flash glm-5.3-flash free; do
+for launcher in laguna nemotron north-mini-code grok laguna-xs nemotron-lightning nex-pro nex-mini inkling-small inkling deepseek-v4-flash glm-5.3-flash free; do
     [[ -x "$BIN_DIR/alt-claude-$launcher" ]] || { echo "Falha: launcher ausente: alt-claude-$launcher" >&2; exit 1; }
 done
 

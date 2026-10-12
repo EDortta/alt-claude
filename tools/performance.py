@@ -178,7 +178,6 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Benchmark de performance dos perfis gratuitos habilitados")
     p.add_argument("--json", action="store_true")
     p.add_argument("--timeout", type=int, default=45)
-    p.add_argument("--all", action="store_true", help="inclui perfis não-free (pode consumir quota paga)")
     args = p.parse_args()
 
     alt_claude = os.environ.get("ALT_CLAUDE_BIN", "alt-claude")
@@ -193,7 +192,7 @@ def main() -> int:
         model = meta.get("MODEL", "")
         if not model or model in disabled:
             continue
-        if not args.all and not is_free_profile(meta):
+        if not is_free_profile(meta):
             continue
         candidates.append((path.stem, meta))
 

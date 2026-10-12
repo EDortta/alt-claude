@@ -258,7 +258,35 @@ NVIDIA NIM — endpoints gratuitos de prototipação/desenvolvimento
   criar/gerenciar: https://build.nvidia.com/settings/api-keys
   catálogo: https://build.nvidia.com/
   arquivo: nvidia.env
-  variável: NVIDIA_API_KEY
+  variável: NVIDIA_NIM_API_KEY ou NVIDIA_API_KEY
+
+GROQ
+  criar/gerenciar: https://console.groq.com/keys
+  arquivo: groq.env
+  variável: GROQ_API_KEY
+
+COHERE
+  criar/gerenciar: https://dashboard.cohere.com/api-keys
+  arquivo: cohere.env
+  variável: COHERE_API_KEY
+
+GOOGLE AI STUDIO
+  criar/gerenciar: https://aistudio.google.com/apikey
+  arquivo: google.env
+  variável: GOOGLE_AI_STUDIO_API_KEY ou GEMINI_API_KEY
+
+KILO
+  rota gratuita anônima; não requer arquivo de credencial
+
+FREEINFERENCE
+  criar/gerenciar: https://freeinference.org
+  arquivo: freeinference.env
+  variável: FREEINFERENCE_API_KEY
+
+AIHUBMIX
+  criar/gerenciar: https://aihubmix.com/token
+  arquivo: aihubmix.env
+  variável: AIHUBMIX_API_KEY
 
 GROQ
   criar/gerenciar: https://console.groq.com/keys

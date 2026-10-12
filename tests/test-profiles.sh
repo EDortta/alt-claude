@@ -164,6 +164,37 @@ assert tools[0]["function"]["name"]=="get_status"
 assert mod._tool_choice_to_openai(payload["tool_choice"])=="auto"
 PY
 
+# Claude-compatible non-interactive JSON mode must fail fast and preserve errors as JSON.
+printf 'KIMI_API_KEY=test-key\n' >"$CREDS/kimi.env"
+cat >"$TMP/claude" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "${CLAUDE_CODE_MAX_RETRIES:-unset}" >"${ALT_CLAUDE_TEST_RETRIES:?}"
+printf '%s\n' '502 HTTP 403: {"code":"permission-denied","error":"blocked for test"}' >&2
+exit 1
+EOF
+chmod +x "$TMP/claude"
+set +e
+json_error="$(
+    PATH="$TMP:$PATH" \
+    ALT_CLAUDE_CREDENTIALS_DIR="$CREDS" \
+    ALT_CLAUDE_TEST_RETRIES="$TMP/retries" \
+        "$BIN_DIR/alt-claude" --use kimi -p "ping" --output-format json 2>/dev/null
+)"
+json_status=$?
+set -e
+[[ $json_status -eq 1 ]] || { echo "Falha: JSON probe deveria preservar exit code 1" >&2; exit 1; }
+[[ "$(cat "$TMP/retries")" == "0" ]] || { echo "Falha: JSON probe deveria desabilitar retries por padrão" >&2; exit 1; }
+python3 - "$json_error" <<'PY'
+import json, sys
+obj=json.loads(sys.argv[1])
+assert obj["type"] == "error"
+assert obj["ok"] is False
+assert obj["provider"] == "kimi"
+assert obj["http_status"] in (403, 502)
+assert obj["error_type"] == "permission-denied"
+assert "blocked for test" in obj["message"]
+PY
+
 # Synthetic oversized session: North must refuse resume before hitting provider limit.
 SESSION_ID="session-oversized"
 SESSION_DIR="$TEST_HOME/.claude/projects/-tmp-project"

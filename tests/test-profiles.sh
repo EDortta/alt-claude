@@ -12,7 +12,7 @@ CREDS="$TMP/credentials"
 TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
-python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/xai-anthropic-bridge.py"
+python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/xai-anthropic-bridge.py"
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash
@@ -231,6 +231,53 @@ assert obj["http_status"] in (403, 502)
 assert obj["error_type"] == "permission-denied"
 assert "blocked for test" in obj["message"]
 PY
+
+# Model state: last-model is project-local, evaluations/disable state are shared globally.
+MODEL_STATE_DIR="$TMP/model-state"
+MODEL_CONFIG_DIR="$TMP/model-config"
+PROJECT_A="$TMP/project-a"
+PROJECT_B="$TMP/project-b"
+mkdir -p "$PROJECT_A" "$PROJECT_B"
+git -C "$PROJECT_A" init -q
+git -C "$PROJECT_B" init -q
+
+(
+    cd "$PROJECT_A"
+    ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+        python3 "$BIN_DIR/alt-claude-model-state" record-use \
+        --profile north-mini-code --provider openrouter --model cohere/north-mini-code:free
+    last="$(ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" "$BIN_DIR/alt-claude" --last-model)"
+    [[ "$last" == *"cohere/north-mini-code:free via openrouter"* ]] || { echo "Falha: --last-model incorreto" >&2; exit 1; }
+    ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+        "$BIN_DIR/alt-claude" --evaluate 5 >/dev/null
+)
+(
+    cd "$PROJECT_B"
+    set +e
+    ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+        "$BIN_DIR/alt-claude" --last-model >/dev/null 2>"$TMP/project-b-last.err"
+    st=$?
+    set -e
+    [[ $st -eq 2 ]] || { echo "Falha: --last-model deve ser isolado por Git root" >&2; exit 1; }
+)
+[[ -s "$MODEL_STATE_DIR/evaluations.jsonl" ]] || { echo "Falha: avaliação compartilhada não registrada" >&2; exit 1; }
+
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+    "$BIN_DIR/alt-claude" --disable north-mini-code >/dev/null
+set +e
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+ALT_CLAUDE_BIN="$TMP/fake-alt-claude" ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
+ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
+    "$BIN_DIR/alt-claude-north-mini-code" "ping" >/dev/null 2>"$TMP/disabled.err"
+disabled_status=$?
+set -e
+[[ $disabled_status -eq 78 ]] || { echo "Falha: modelo disabled deveria bloquear uso" >&2; exit 1; }
+grep -q 'ALERTA: modelo desabilitado' "$TMP/disabled.err"
+
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+    "$BIN_DIR/alt-claude" --enable north-mini-code >/dev/null
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+    python3 "$BIN_DIR/alt-claude-model-state" check-enabled cohere/north-mini-code:free
 
 # Synthetic oversized session: North must refuse resume before hitting provider limit.
 SESSION_ID="session-oversized"

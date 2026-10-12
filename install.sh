@@ -20,6 +20,7 @@ install -m 0755 "$ROOT/tools/session-compact.py" "$TARGET_DIR/alt-claude-session
 install -m 0755 "$ROOT/tools/project-policy.py" "$TARGET_DIR/alt-claude-policy"
 install -m 0755 "$ROOT/tools/usage-report.py" "$TARGET_DIR/alt-claude-usage"
 install -m 0755 "$ROOT/tools/model-state.py" "$TARGET_DIR/alt-claude-model-state"
+install -m 0755 "$ROOT/tools/performance.py" "$TARGET_DIR/alt-claude-performance"
 install -m 0755 "$ROOT/tools/xai-anthropic-bridge.py" "$TARGET_DIR/alt-claude-grok-bridge"
 
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude"
@@ -29,6 +30,7 @@ printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-session-compact"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-policy"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-usage"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-model-state"
+printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-performance"
 printf 'Instalado: %s\n' "$TARGET_DIR/alt-claude-grok-bridge"
 
 shopt -s nullglob

@@ -75,9 +75,30 @@ def load_disabled() -> set[str]:
 
 
 def is_free_profile(meta: dict[str, str]) -> bool:
+    if meta.get("FREE", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return True
     model = meta.get("MODEL", "")
     provider = meta.get("PROVIDER", "")
     return provider == "openrouter" and (model.endswith(":free") or model == "openrouter/free")
+
+
+def classify_launch_failure(returncode: int, stdout: str, stderr: str) -> str:
+    combined = "\n".join(x for x in (stderr.strip(), stdout.strip()) if x).lower()
+    if "credencial não encontrada" in combined or "api_key não definida" in combined or "api key" in combined and "não definida" in combined:
+        return "credential-missing"
+    if "cota diária openrouter free esgotada" in combined or "free-models-per-day" in combined:
+        return "provider-quota-exhausted"
+    if "modelo gratuito indisponível" in combined or "indisponível no preflight" in combined:
+        return "provider-unavailable"
+    if "rate limit" in combined or "resource_exhausted" in combined or "429" in combined:
+        return "rate-limited"
+    if "permission-denied" in combined or "permission denied" in combined or "403" in combined:
+        return "permission-denied"
+    if "timeout" in combined:
+        return "timeout"
+    if returncode != 0:
+        return f"launch-error-{returncode}"
+    return "invalid-wrapper-json"
 
 
 def extract_model_answer(stdout: str) -> tuple[dict[str, Any] | None, str]:
@@ -150,11 +171,14 @@ def run_profile(alt_claude: str, name: str, meta: dict[str, str], timeout: int) 
         }
 
     answer, status = extract_model_answer(proc.stdout)
+    answered = answer is not None
+    if not answered:
+        status = classify_launch_failure(proc.returncode, proc.stdout, proc.stderr)
     score = score_answer(answer)
     ok = proc.returncode == 0 and score == 3
-    if proc.returncode != 0 and status == "ok":
+    if answered and proc.returncode != 0 and status == "ok":
         status = f"exit-{proc.returncode}"
-    elif score < 3 and status == "ok":
+    elif answered and score < 3 and status == "ok":
         status = f"partial-{score}/3"
     result = {
         "timestamp": now_iso(),
@@ -162,8 +186,9 @@ def run_profile(alt_claude: str, name: str, meta: dict[str, str], timeout: int) 
         "model": meta.get("MODEL"),
         "provider": meta.get("PROVIDER"),
         "ok": ok,
-        "score": score,
-        "tests": 3,
+        "answered": answered,
+        "score": score if answered else None,
+        "tests": 3 if answered else 0,
         "seconds": round(elapsed, 3),
         "status": status,
     }
@@ -208,7 +233,15 @@ def main() -> int:
         append_result(result)
         results.append(result)
 
-    ranked = sorted(results, key=lambda r: (-int(r["score"]), float(r["seconds"]), str(r["profile"])))
+    ranked = sorted(
+        results,
+        key=lambda r: (
+            0 if r.get("answered") else 1,
+            -int(r.get("score") or 0),
+            float(r["seconds"]),
+            str(r["profile"]),
+        ),
+    )
 
     if args.json:
         print(json.dumps(ranked, ensure_ascii=False))
@@ -218,9 +251,10 @@ def main() -> int:
     print(f"{'#':>2}  {'PROFILE':24} {'SCORE':7} {'TEMPO':9} STATUS")
     print(f"{'--':>2}  {'-'*24} {'-'*7} {'-'*9} {'-'*24}")
     for idx, r in enumerate(ranked, 1):
-        print(f"{idx:>2}  {str(r['profile']):24.24} {r['score']}/3    {r['seconds']:>7.2f}s {r['status']}")
+        score = f"{r['score']}/3" if r.get("answered") else "-"
+        print(f"{idx:>2}  {str(r['profile']):24.24} {score:7} {r['seconds']:>7.2f}s {r['status']}")
     print()
-    print("Ranking: maior acerto primeiro; em empate, menor tempo total.")
+    print("Ranking: respostas válidas primeiro; maior acerto e, em empate, menor tempo.")
     print(f"Histórico: {STATE_ROOT / 'performance.jsonl'}")
     return 0
 

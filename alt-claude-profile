@@ -222,8 +222,5 @@ if [[ "$PROVIDER" == "openrouter" && ( "$MODEL" == *":free" || "$MODEL" == "open
     fi
 fi
 
-if [[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]]; then
-    python3 "$MODEL_STATE" record-use --profile "$PROFILE_NAME" --provider "$PROVIDER" --model "$MODEL" --route "$PROVIDER" >/dev/null
-fi
-
+export ALT_CLAUDE_ACTIVE_PROFILE="$PROFILE_NAME"
 exec "$ALT_CLAUDE_BIN" --use "$PROVIDER" --model "$MODEL" "$@"

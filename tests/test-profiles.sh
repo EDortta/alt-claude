@@ -125,7 +125,7 @@ grep -q 'cota diária OpenRouter free esgotada' "$TMP/quota-session-quota-1.err"
 grep -q 'cota diária OpenRouter free esgotada' "$TMP/quota-session-quota-2.err"
 
 # Gateways known not to pass Claude Code server-side safeguards must force client-side classifier mode.
-grep -q 'CLAUDE_CODE_AUTO_MODE_SERVER:=0' "$ROOT/alt-claude-core"
+grep -q 'export CLAUDE_CODE_AUTO_MODE_SERVER=0' "$ROOT/alt-claude-core"
 python3 - "$ROOT/alt-claude-core" <<'PY'
 from pathlib import Path
 s=Path(__import__('sys').argv[1]).read_text(encoding='utf-8')
@@ -134,7 +134,7 @@ for fn in ('start_copilot()', 'start_codex()', 'start_openrouter()'):
     if pos < 0:
         raise SystemExit(f'missing {fn}')
     block=s[pos:s.find('\n}', pos)+2]
-    if 'CLAUDE_CODE_AUTO_MODE_SERVER:=0' not in block:
+    if 'export CLAUDE_CODE_AUTO_MODE_SERVER=0' not in block:
         raise SystemExit(f'{fn} does not force client-side auto classifier')
 PY
 

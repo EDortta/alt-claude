@@ -862,9 +862,13 @@ stderr = pathlib.Path(err_path).read_text(encoding="utf-8", errors="replace").st
 combined = "\n".join(x for x in (stderr, stdout) if x)
 
 http_status = None
-m = re.search(r"\b(?:HTTP\s*)?(4\d\d|5\d\d)\b", combined, re.I)
-if m:
-    http_status = int(m.group(1))
+explicit_http = re.findall(r"\bHTTP\s*(4\d\d|5\d\d)\b", combined, re.I)
+if explicit_http:
+    http_status = int(explicit_http[-1])
+else:
+    generic_http = re.findall(r"\b(4\d\d|5\d\d)\b", combined)
+    if generic_http:
+        http_status = int(generic_http[-1])
 
 error_type = "unknown"
 low = combined.lower()

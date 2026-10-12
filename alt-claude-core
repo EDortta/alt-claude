@@ -809,4 +809,118 @@ case "$USE" in
         ;;
 esac
 
+claude_json_print_mode() {
+    local saw_print=0 saw_json=0 prev=""
+    local arg
+    for arg in "${CLAUDE_ARGS[@]}"; do
+        case "$arg" in
+            -p|--print) saw_print=1 ;;
+            --output-format=json) saw_json=1 ;;
+        esac
+        if [[ "$prev" == "--output-format" && "$arg" == "json" ]]; then
+            saw_json=1
+        fi
+        prev="$arg"
+    done
+    [[ $saw_print -eq 1 && $saw_json -eq 1 ]]
+}
+
+run_claude_json_print() {
+    local out err status
+    out="$(mktemp "${TMPDIR:-/tmp}/alt-claude-json-out.XXXXXX")"
+    err="$(mktemp "${TMPDIR:-/tmp}/alt-claude-json-err.XXXXXX")"
+    trap 'rm -f "$out" "$err"' RETURN
+
+    # Machine-readable probes should fail fast instead of waiting through
+    # Claude Code's default API retry loop. An explicit caller override wins.
+    : "${CLAUDE_CODE_MAX_RETRIES:=0}"
+    export CLAUDE_CODE_MAX_RETRIES
+
+    set +e
+    claude "${CLAUDE_ARGS[@]}" >"$out" 2>"$err"
+    status=$?
+    set -e
+
+    if python3 - "$out" >/dev/null 2>&1 <<'PY'
+import json, pathlib, sys
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").strip()
+if not text:
+    raise SystemExit(1)
+json.loads(text)
+PY
+    then
+        cat "$out"
+        return "$status"
+    fi
+
+    python3 - "$out" "$err" "$status" "$USE" "${ANTHROPIC_MODEL:-${MODEL:-}}" <<'PY'
+import json, pathlib, re, sys
+
+out_path, err_path, status, provider, model = sys.argv[1:]
+stdout = pathlib.Path(out_path).read_text(encoding="utf-8", errors="replace").strip()
+stderr = pathlib.Path(err_path).read_text(encoding="utf-8", errors="replace").strip()
+combined = "\n".join(x for x in (stderr, stdout) if x)
+
+http_status = None
+m = re.search(r"\b(?:HTTP\s*)?(4\d\d|5\d\d)\b", combined, re.I)
+if m:
+    http_status = int(m.group(1))
+
+error_type = "unknown"
+low = combined.lower()
+for needle, label in (
+    ("permission-denied", "permission-denied"),
+    ("permission denied", "permission-denied"),
+    ("unauthorized", "unauthorized"),
+    ("invalid api key", "authentication"),
+    ("authentication", "authentication"),
+    ("rate limit", "rate-limit"),
+    ("quota", "quota"),
+    ("model not found", "model-not-found"),
+    ("not found", "not-found"),
+    ("connection", "network"),
+    ("timeout", "timeout"),
+):
+    if needle in low:
+        error_type = label
+        break
+
+message = combined
+# Prefer a provider JSON body embedded in the diagnostic, when present.
+for candidate in re.findall(r"\{.*\}", combined, re.S):
+    try:
+        obj = json.loads(candidate)
+    except Exception:
+        continue
+    if isinstance(obj, dict):
+        if isinstance(obj.get("error"), str):
+            message = obj["error"]
+        elif isinstance(obj.get("error"), dict):
+            message = str(obj["error"].get("message") or obj["error"])
+        elif obj.get("message"):
+            message = str(obj["message"])
+        if obj.get("code"):
+            error_type = str(obj["code"])
+        break
+
+result = {
+    "type": "error",
+    "ok": False,
+    "provider": provider or None,
+    "model": model or None,
+    "exit_code": int(status),
+    "http_status": http_status,
+    "error_type": error_type,
+    "message": message[:12000],
+}
+print(json.dumps(result, ensure_ascii=False))
+PY
+    return "$status"
+}
+
+if claude_json_print_mode; then
+    run_claude_json_print
+    exit $?
+fi
+
 exec claude "${CLAUDE_ARGS[@]}"

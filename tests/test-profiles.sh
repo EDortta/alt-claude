@@ -12,7 +12,7 @@ CREDS="$TMP/credentials"
 TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
-python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/xai-anthropic-bridge.py"
+python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/performance.py" "$ROOT/tools/xai-anthropic-bridge.py"
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash
@@ -20,7 +20,7 @@ printf '%s\n' "$@" >"${ALT_CLAUDE_TEST_CAPTURE:?}"
 EOF
 chmod +x "$TMP/fake-alt-claude"
 
-ALT_CLAUDE_INSTALL_DIR="$BIN_DIR" ALT_CLAUDE_DATA_DIR="$DATA_DIR" bash "$ROOT/install.sh" >/dev/null
+PATH="$BIN_DIR:$PATH" ALT_CLAUDE_INSTALL_DIR="$BIN_DIR" ALT_CLAUDE_DATA_DIR="$DATA_DIR" bash "$ROOT/install.sh" >/dev/null
 
 # Unified help must cover the whole product, not just the legacy core.
 help="$($BIN_DIR/alt-claude --help)"
@@ -28,6 +28,8 @@ grep -q 'OPÇÕES COMUNS' <<<"$help"
 grep -q 'POLÍTICA POR PROJETO' <<<"$help"
 grep -q 'CONTEXTO E COMPACTAÇÃO' <<<"$help"
 grep -q 'AJUDA POR ASSUNTO' <<<"$help"
+grep -q -- '--list-performance' <<<"$help"
+$BIN_DIR/alt-claude help performance | grep -q 'microtestes determinísticos'
 $BIN_DIR/alt-claude help policy | grep -q 'policy init sensitive'
 $BIN_DIR/alt-claude help compact | grep -q 'handoff Markdown OFFLINE'
 

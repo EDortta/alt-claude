@@ -39,6 +39,9 @@ KIMI_API_KEY="..."
 ```bash
 # grok.env
 GROK_API_KEY="..."
+# XAI_API_KEY is also accepted instead of GROK_API_KEY.
+GROK_MODEL="grok-build-0.1"
+GROK_REASONING_EFFORT="low"
 ```
 
 ```bash

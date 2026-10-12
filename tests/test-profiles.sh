@@ -234,6 +234,74 @@ assert obj["error_type"] == "permission-denied"
 assert "blocked for test" in obj["message"]
 PY
 
+# Performance benchmark ranks enabled free profiles without touching paid/subscription routes.
+PERF_PROFILES="$TMP/perf-profiles"
+mkdir -p "$PERF_PROFILES"
+cat >"$PERF_PROFILES/a.env" <<'EOF'
+PROVIDER=openrouter
+MODEL=test/a:free
+DISPLAY_NAME="A"
+STATUS=active
+PRIVACY=review
+CONTEXT_WINDOW=1000
+SAFE_CONTEXT_TOKENS=800
+AUTO_COMPACT_PCT=60
+EOF
+cat >"$PERF_PROFILES/b.env" <<'EOF'
+PROVIDER=openrouter
+MODEL=test/b:free
+DISPLAY_NAME="B"
+STATUS=active
+PRIVACY=review
+CONTEXT_WINDOW=1000
+SAFE_CONTEXT_TOKENS=800
+AUTO_COMPACT_PCT=60
+EOF
+cat >"$PERF_PROFILES/paid.env" <<'EOF'
+PROVIDER=grok
+MODEL=grok-4.7
+DISPLAY_NAME="Paid"
+STATUS=active
+PRIVACY=review
+CONTEXT_WINDOW=1000
+SAFE_CONTEXT_TOKENS=800
+AUTO_COMPACT_PCT=60
+EOF
+cat >"$TMP/fake-perf-alt-claude" <<'EOF'
+#!/usr/bin/env bash
+profile=""
+prev=""
+for arg in "$@"; do
+  if [[ "$prev" == "--profile" ]]; then profile="$arg"; fi
+  prev="$arg"
+done
+case "$profile" in
+  a) result='{"arithmetic":139,"code":[4,16],"logic":12}' ;;
+  b) result='{"arithmetic":139,"code":[4,16],"logic":11}' ;;
+  paid) echo "paid profile must not run" >&2; exit 99 ;;
+  *) exit 2 ;;
+esac
+python3 - "$result" <<'PY'
+import json, sys
+print(json.dumps({"type":"result","is_error":False,"result":sys.argv[1]}))
+PY
+EOF
+chmod +x "$TMP/fake-perf-alt-claude"
+perf_out="$(
+  ALT_CLAUDE_BIN="$TMP/fake-perf-alt-claude" \
+  ALT_CLAUDE_PROFILE_DIR="$PERF_PROFILES" \
+  ALT_CLAUDE_STATE_DIR="$TMP/perf-state" \
+  ALT_CLAUDE_CONFIG_DIR="$TMP/perf-config" \
+    "$BIN_DIR/alt-claude" --list-performance --json
+)"
+python3 - "$perf_out" <<'PY'
+import json, sys
+rows=json.loads(sys.argv[1])
+assert [r["profile"] for r in rows] == ["a","b"]
+assert rows[0]["score"] == 3
+assert rows[1]["score"] == 2
+PY
+
 # Model state: last-model is project-local, evaluations/disable state are shared globally.
 MODEL_STATE_DIR="$TMP/model-state"
 MODEL_CONFIG_DIR="$TMP/model-config"

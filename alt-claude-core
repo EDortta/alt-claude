@@ -592,8 +592,11 @@ process.stdin.on("end", () => {
     # copilot-api at 127.0.0.1:4141 is not currently compatible with Claude
     # Code's server-side safeguards/safeguard_results contract. Keep auto mode
     # usable by forcing Claude Code's client-side classifier path.
-    : "${CLAUDE_CODE_AUTO_MODE_SERVER:=0}"
-    export CLAUDE_CODE_AUTO_MODE_SERVER
+    if [[ "${ALT_CLAUDE_ALLOW_SERVER_AUTO_MODE:-0}" == "1" ]]; then
+        echo "alt-claude: aviso: server-side auto mode foi forçado para um gateway não verificado." >&2
+    else
+        export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    fi
 
     set_all_models "$selected_model"
 }
@@ -635,8 +638,11 @@ start_codex() {
     # safeguards/safeguard_results protocol through unchanged. Force the
     # documented client-side classifier path so auto mode does not deny Bash
     # merely because the gateway returned no safety verdict.
-    : "${CLAUDE_CODE_AUTO_MODE_SERVER:=0}"
-    export CLAUDE_CODE_AUTO_MODE_SERVER
+    if [[ "${ALT_CLAUDE_ALLOW_SERVER_AUTO_MODE:-0}" == "1" ]]; then
+        echo "alt-claude: aviso: server-side auto mode foi forçado para um gateway não verificado." >&2
+    else
+        export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    fi
 
     set_all_models "$selected_model"
 }
@@ -657,8 +663,11 @@ start_openrouter() {
 
     # OpenRouter currently does not expose Claude Code's server-side classifier
     # pass-through contract. Use Claude Code's own classifier requests instead.
-    : "${CLAUDE_CODE_AUTO_MODE_SERVER:=0}"
-    export CLAUDE_CODE_AUTO_MODE_SERVER
+    if [[ "${ALT_CLAUDE_ALLOW_SERVER_AUTO_MODE:-0}" == "1" ]]; then
+        echo "alt-claude: aviso: server-side auto mode foi forçado para um gateway não verificado." >&2
+    else
+        export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    fi
 
     if [ -n "$MODEL" ]; then
         set_all_models "$MODEL"

@@ -22,6 +22,11 @@ openrouter.env
 kimi.env
 grok.env
 nvidia.env
+groq.env
+cohere.env
+google.env
+freeinference.env
+aihubmix.env
 ```
 
 Examples:
@@ -69,3 +74,39 @@ chmod 600 ~/.config/credentials/personal/ai/*.env
 ```
 
 Never commit these files.
+
+## First direct free-provider block
+
+```bash
+# groq.env
+GROQ_API_KEY="..."
+```
+
+```bash
+# cohere.env
+COHERE_API_KEY="..."
+```
+
+```bash
+# google.env
+GOOGLE_AI_STUDIO_API_KEY="..."
+# GEMINI_API_KEY is also accepted.
+```
+
+```bash
+# nvidia.env
+NVIDIA_NIM_API_KEY="..."
+# NVIDIA_API_KEY is also accepted.
+```
+
+```bash
+# freeinference.env
+FREEINFERENCE_API_KEY="..."
+```
+
+```bash
+# aihubmix.env
+AIHUBMIX_API_KEY="..."
+```
+
+Kilo's anonymous free lane does not require a credential file.

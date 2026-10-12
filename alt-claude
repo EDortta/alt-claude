@@ -8,12 +8,14 @@ COMPACTOR="${ALT_CLAUDE_COMPACTOR:-$SELF_DIR/alt-claude-session-compact}"
 POLICY_BIN="${ALT_CLAUDE_POLICY_BIN:-$SELF_DIR/alt-claude-policy}"
 USAGE_BIN="${ALT_CLAUDE_USAGE_BIN:-$SELF_DIR/alt-claude-usage}"
 MODEL_STATE="${ALT_CLAUDE_MODEL_STATE_BIN:-$SELF_DIR/alt-claude-model-state}"
+PERFORMANCE_BIN="${ALT_CLAUDE_PERFORMANCE_BIN:-$SELF_DIR/alt-claude-performance}"
 PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles}"
 
 [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || COMPACTOR="$SELF_DIR/tools/session-compact.py"
 [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || POLICY_BIN="$SELF_DIR/tools/project-policy.py"
 [[ -f "$USAGE_BIN" || -x "$USAGE_BIN" ]] || USAGE_BIN="$SELF_DIR/tools/usage-report.py"
 [[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]] || MODEL_STATE="$SELF_DIR/tools/model-state.py"
+[[ -f "$PERFORMANCE_BIN" || -x "$PERFORMANCE_BIN" ]] || PERFORMANCE_BIN="$SELF_DIR/tools/performance.py"
 [[ -d "$SELF_DIR/profiles" ]] && PROFILE_DIR="$SELF_DIR/profiles"
 
 usage_main() {
@@ -49,6 +51,7 @@ OPÇÕES COMUNS
   --disable MODEL          desabilita globalmente um modelo/perfil
   --enable MODEL           reabilita globalmente um modelo/perfil
   --disabled               lista modelos desabilitados
+  --list-performance       testa e ranqueia perfis gratuitos habilitados
   --list                   lista providers do core
   -h, --help               esta ajuda
 
@@ -122,6 +125,7 @@ EXEMPLOS
   alt-claude --use codex --yolo
   alt-claude --use copilot --resume SESSION_ID
   alt-claude --usage
+  alt-claude --list-performance
   alt-claude --last-model
   alt-claude --evaluate 5
   alt-claude --disable north-mini-code
@@ -131,6 +135,7 @@ EXEMPLOS
 
 AJUDA POR ASSUNTO
   alt-claude help profiles
+  alt-claude help performance
   alt-claude help compact
   alt-claude help policy
   alt-claude help providers
@@ -153,6 +158,26 @@ Use um perfil com:
   alt-claude --profile NAME --yolo
 
 Os antigos comandos alt-claude-NAME continuam disponíveis como atalhos.
+EOF
+}
+
+usage_performance() {
+  cat <<'EOF'
+alt-claude --list-performance [--json] [--timeout SEGUNDOS]
+
+Executa um benchmark curto nos perfis gratuitos habilitados. Cada perfil recebe
+um único prompt com três microtestes determinísticos: aritmética, leitura de
+código e lógica. O ranking prioriza acertos e usa o menor tempo como desempate.
+
+O benchmark não altera --last-model e não autoriza fallback para Codex/Copilot.
+
+Exemplos:
+  alt-claude --list-performance
+  alt-claude --list-performance --timeout 60
+  alt-claude --list-performance --json
+
+O histórico é acumulado em:
+  ~/.local/state/alt-claude/performance.jsonl
 EOF
 }
 
@@ -329,6 +354,7 @@ case "${1:-}" in
     case "${2:-}" in
       "") usage_main ;;
       profiles) usage_profiles ;;
+      performance) usage_performance ;;
       compact) usage_compact ;;
       policy) usage_policy ;;
       providers|provider) usage_providers ;;
@@ -340,6 +366,11 @@ case "${1:-}" in
   --usage)
     [[ -f "$USAGE_BIN" || -x "$USAGE_BIN" ]] || { echo "Erro: relatório de uso não encontrado: $USAGE_BIN" >&2; exit 2; }
     exec python3 "$USAGE_BIN"
+    ;;
+  --list-performance)
+    shift
+    [[ -f "$PERFORMANCE_BIN" || -x "$PERFORMANCE_BIN" ]] || { echo "Erro: benchmark não encontrado: $PERFORMANCE_BIN" >&2; exit 2; }
+    exec python3 "$PERFORMANCE_BIN" "$@"
     ;;
   --last-model)
     shift

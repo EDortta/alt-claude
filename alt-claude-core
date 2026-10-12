@@ -20,6 +20,9 @@ set -euo pipefail
 #
 
 CREDENTIALS_DIR="${ALT_CLAUDE_CREDENTIALS_DIR:-$HOME/.config/credentials/personal/ai}"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODEL_STATE="${ALT_CLAUDE_MODEL_STATE_BIN:-$SELF_DIR/alt-claude-model-state}"
+[[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]] || MODEL_STATE="$SELF_DIR/tools/model-state.py"
 
 USE=""
 MODEL=""
@@ -921,6 +924,16 @@ print(json.dumps(result, ensure_ascii=False))
 PY
     return "$status"
 }
+
+actual_model="${ANTHROPIC_MODEL:-${MODEL:-unknown}}"
+if [[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]]; then
+    python3 "$MODEL_STATE" check-enabled "$actual_model"
+    python3 "$MODEL_STATE" record-use \
+        --profile "${ALT_CLAUDE_ACTIVE_PROFILE:-}" \
+        --provider "$USE" \
+        --model "$actual_model" \
+        --route "$USE" >/dev/null
+fi
 
 if claude_json_print_mode; then
     run_claude_json_print

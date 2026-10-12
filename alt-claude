@@ -7,11 +7,13 @@ PROFILE_BIN="${ALT_CLAUDE_PROFILE_BIN:-$SELF_DIR/alt-claude-profile}"
 COMPACTOR="${ALT_CLAUDE_COMPACTOR:-$SELF_DIR/alt-claude-session-compact}"
 POLICY_BIN="${ALT_CLAUDE_POLICY_BIN:-$SELF_DIR/alt-claude-policy}"
 USAGE_BIN="${ALT_CLAUDE_USAGE_BIN:-$SELF_DIR/alt-claude-usage}"
+MODEL_STATE="${ALT_CLAUDE_MODEL_STATE_BIN:-$SELF_DIR/alt-claude-model-state}"
 PROFILE_DIR="${ALT_CLAUDE_PROFILE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/alt-claude/profiles}"
 
 [[ -f "$COMPACTOR" || -x "$COMPACTOR" ]] || COMPACTOR="$SELF_DIR/tools/session-compact.py"
 [[ -f "$POLICY_BIN" || -x "$POLICY_BIN" ]] || POLICY_BIN="$SELF_DIR/tools/project-policy.py"
 [[ -f "$USAGE_BIN" || -x "$USAGE_BIN" ]] || USAGE_BIN="$SELF_DIR/tools/usage-report.py"
+[[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]] || MODEL_STATE="$SELF_DIR/tools/model-state.py"
 [[ -d "$SELF_DIR/profiles" ]] && PROFILE_DIR="$SELF_DIR/profiles"
 
 usage_main() {
@@ -42,6 +44,11 @@ OPÇÕES COMUNS
   --resume ID              retoma uma sessão Claude Code existente
   --resume=ID              mesma coisa
   --usage                  relatório factual de autenticação/quota conhecida
+  --last-model             último modelo usado neste projeto Git
+  --evaluate N             avalia de 1 a 5 o último modelo deste projeto
+  --disable MODEL          desabilita globalmente um modelo/perfil
+  --enable MODEL           reabilita globalmente um modelo/perfil
+  --disabled               lista modelos desabilitados
   --list                   lista providers do core
   -h, --help               esta ajuda
 
@@ -115,6 +122,10 @@ EXEMPLOS
   alt-claude --use codex --yolo
   alt-claude --use copilot --resume SESSION_ID
   alt-claude --usage
+  alt-claude --last-model
+  alt-claude --evaluate 5
+  alt-claude --disable north-mini-code
+  alt-claude --enable north-mini-code
   alt-claude compact SESSION_ID
   alt-claude policy init sensitive
 
@@ -272,6 +283,33 @@ show_profiles_group() {
   (( found == 1 )) || echo "(nenhum perfil nesta classe)"
 }
 
+resolve_model_target() {
+  local target="$1"
+  local f=""
+  if [[ -r "$SELF_DIR/profiles/$target.env" ]]; then
+    f="$SELF_DIR/profiles/$target.env"
+  elif [[ -r "$PROFILE_DIR/$target.env" ]]; then
+    f="$PROFILE_DIR/$target.env"
+  fi
+  if [[ -n "$f" ]]; then
+    (
+      unset MODEL
+      # shellcheck disable=SC1090
+      source "$f"
+      printf '%s\n' "${MODEL:-$target}"
+    )
+  else
+    printf '%s\n' "$target"
+  fi
+}
+
+require_model_state() {
+  [[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]] || {
+    echo "Erro: model state helper não encontrado: $MODEL_STATE" >&2
+    exit 2
+  }
+}
+
 check_direct_provider_policy() {
   local provider="" prev=""
   for arg in "$@"; do
@@ -302,6 +340,39 @@ case "${1:-}" in
   --usage)
     [[ -f "$USAGE_BIN" || -x "$USAGE_BIN" ]] || { echo "Erro: relatório de uso não encontrado: $USAGE_BIN" >&2; exit 2; }
     exec python3 "$USAGE_BIN"
+    ;;
+  --last-model)
+    shift
+    require_model_state
+    exec python3 "$MODEL_STATE" last-model "$@"
+    ;;
+  --evaluate|--evaluation)
+    [[ $# -ge 2 ]] || { echo "Erro: --evaluate requer nota de 1 a 5" >&2; exit 2; }
+    shift
+    rating="$1"; shift
+    require_model_state
+    exec python3 "$MODEL_STATE" evaluate "$rating" "$@"
+    ;;
+  --disable)
+    [[ $# -ge 2 ]] || { echo "Erro: --disable requer modelo ou perfil" >&2; exit 2; }
+    target="$2"
+    model="$(resolve_model_target "$target")"
+    shift 2
+    require_model_state
+    exec python3 "$MODEL_STATE" disable "$model" --label "$target" "$@"
+    ;;
+  --enable)
+    [[ $# -ge 2 ]] || { echo "Erro: --enable requer modelo ou perfil" >&2; exit 2; }
+    target="$2"
+    model="$(resolve_model_target "$target")"
+    shift 2
+    require_model_state
+    exec python3 "$MODEL_STATE" enable "$model" "$@"
+    ;;
+  --disabled)
+    shift
+    require_model_state
+    exec python3 "$MODEL_STATE" list-disabled "$@"
     ;;
   compact)
     shift

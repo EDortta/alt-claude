@@ -27,3 +27,19 @@ alt-claude-grok --model grok-4.7
 ```
 
 The public xAI API is pay-as-you-go. Grok is therefore never inserted into the automatic free-provider fallback chain.
+
+## First direct free-provider block
+
+The first provider-diversification block intentionally avoids relying on OpenRouter quota. Each route is marked `FREE=1` in its profile and remains experimental until it passes local benchmark and real coding use.
+
+- `groq` -> `openai/gpt-oss-120b` through the generic local OpenAI-to-Anthropic bridge.
+- `cohere` -> `north-mini-code-1-0` through Cohere's OpenAI compatibility API.
+- `google` -> `gemini-3.8-flash` through Google AI Studio's OpenAI compatibility API.
+- `nvidia` -> `deepseek-ai/deepseek-v4.1-flash` through NVIDIA NIM's OpenAI-compatible endpoint.
+- `kilo` -> `cohere/north-mini-code:free` through Kilo's anonymous free gateway.
+- `freeinference` -> `glm-5.3-flash` through FreeInference's native Anthropic-compatible endpoint.
+- `aihubmix` -> `coding-glm-5.3-flash-free` through AIHubMix's native Anthropic-compatible endpoint.
+
+The generic bridge is installed as `alt-claude-openai-bridge`. It is intentionally separate from the xAI/Grok bridge so Grok-specific behavior remains isolated.
+
+The local clone `FreeLLM-API-KeyHub/` is reference material only for now and is ignored by Git. Do not make it a submodule until we decide that runtime or build-time behavior actually depends on a pinned revision.

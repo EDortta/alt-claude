@@ -309,6 +309,22 @@ chmod 600 ~/.config/credentials/personal/ai/*.env
 
 See [docs/credentials.md](docs/credentials.md), [docs/providers.md](docs/providers.md), [docs/profiles.md](docs/profiles.md), [docs/usage.md](docs/usage.md), and [docs/local-worker-capacity.md](docs/local-worker-capacity.md).
 
+## JSON diagnostics
+
+Use the same non-interactive style already supported by Claude Code:
+
+```bash
+alt-claude-grok -p "Responda somente OK" --output-format json
+alt-claude-north-mini-code -p "Responda somente OK" --output-format json
+alt-claude --use codex -p "Responda somente OK" --output-format json
+alt-claude --use copilot -p "Responda somente OK" --output-format json
+```
+
+When print mode and JSON output are combined, alt-claude defaults API retries to zero so provider failures return immediately. If Claude Code returns a non-JSON gateway/API error, alt-claude emits one JSON error object containing provider, model, exit code, HTTP status, error type and message. Successful JSON output is passed through unchanged.
+
+Set `CLAUDE_CODE_MAX_RETRIES` explicitly if retries are desired.
+
+
 ## Tests
 
 ```bash

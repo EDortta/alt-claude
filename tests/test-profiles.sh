@@ -31,11 +31,28 @@ grep -q 'AJUDA POR ASSUNTO' <<<"$help"
 $BIN_DIR/alt-claude help policy | grep -q 'policy init sensitive'
 $BIN_DIR/alt-claude help compact | grep -q 'handoff Markdown OFFLINE'
 
-# Normal forwarding: no real session exists, so resume guard stays non-blocking.
-ALT_CLAUDE_NO_FALLBACK=1 \
+# Normal forwarding: a healthy free route stays on the requested free model.
+printf 'OPENROUTER_API_KEY=test-key\n' >"$CREDS/openrouter.env"
+cat >"$TMP/curl" <<'EOF'
+#!/usr/bin/env bash
+out=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o) out="$2"; shift 2 ;;
+        -w) shift 2 ;;
+        *) shift ;;
+    esac
+done
+[[ -n "$out" ]] && printf '%s\n' '{"choices":[{"message":{"content":"OK"}}]}' >"$out"
+printf '200'
+EOF
+chmod +x "$TMP/curl"
+
+PATH="$TMP:$PATH" \
 ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
 ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
 ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
+ALT_CLAUDE_CREDENTIALS_DIR="$CREDS" \
     "$BIN_DIR/alt-claude-laguna" --yolo --resume session-123
 
 expected=$(cat <<'EOF'
@@ -51,8 +68,7 @@ EOF
 actual="$(cat "$CAPTURE")"
 [[ "$actual" == "$expected" ]] || { echo "Falha no forwarding" >&2; diff -u <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true; exit 1; }
 
-# OpenRouter exhausted -> Codex fallback, preserving common flags.
-printf 'OPENROUTER_API_KEY=test-key\n' >"$CREDS/openrouter.env"
+# A free profile must fail closed by default: no implicit Codex/Copilot fallback.
 cat >"$TMP/curl" <<'EOF'
 #!/usr/bin/env bash
 printf '429'
@@ -62,8 +78,25 @@ cat >"$TMP/claude-codex-proxy" <<'EOF'
 exit 0
 EOF
 chmod +x "$TMP/curl" "$TMP/claude-codex-proxy"
+rm -f "$CAPTURE"
 
+set +e
 PATH="$TMP:$PATH" \
+ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
+ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
+ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
+ALT_CLAUDE_CREDENTIALS_DIR="$CREDS" \
+    "$BIN_DIR/alt-claude-nemotron" --yolo --resume session-456 >"$TMP/free-fail.out" 2>"$TMP/free-fail.err"
+free_status=$?
+set -e
+
+[[ $free_status -eq 75 ]] || { echo "Falha: perfil free deveria retornar 75 quando indisponível" >&2; exit 1; }
+[[ ! -e "$CAPTURE" ]] || { echo "Falha: perfil free tentou outro provider sem opt-in" >&2; exit 1; }
+grep -q 'nenhum provider pago/por assinatura será usado automaticamente' "$TMP/free-fail.err"
+
+# Fallback to Codex remains possible only with explicit opt-in.
+PATH="$TMP:$PATH" \
+ALT_CLAUDE_ALLOW_FALLBACK=1 \
 ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
 ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
 ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
@@ -78,7 +111,7 @@ codex
 session-456
 EOF
 )
-[[ "$(cat "$CAPTURE")" == "$fallback_expected" ]] || { echo "Falha no fallback Codex" >&2; exit 1; }
+[[ "$(cat "$CAPTURE")" == "$fallback_expected" ]] || { echo "Falha no fallback Codex com opt-in" >&2; exit 1; }
 
 # Explicit daily free quota exhaustion is cached: the second invocation must not hit OpenRouter again.
 STATE_DIR="$TMP/state"

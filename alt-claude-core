@@ -733,6 +733,9 @@ start_grok() {
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="grok-local-bridge"
 
+    : "${CLAUDE_CODE_MAX_CONTEXT_TOKENS:=256000}"
+    export CLAUDE_CODE_MAX_CONTEXT_TOKENS
+
     if [[ "${ALT_CLAUDE_ALLOW_SERVER_AUTO_MODE:-0}" == "1" ]]; then
         echo "alt-claude: aviso: server-side auto mode foi forçado para um gateway não verificado." >&2
     else

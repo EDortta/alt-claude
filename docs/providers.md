@@ -27,3 +27,16 @@ alt-claude-grok --model grok-4.7
 ```
 
 The public xAI API is pay-as-you-go. Grok is therefore never inserted into the automatic free-provider fallback chain.
+
+
+## Grok bridge
+
+The Grok adapter starts a localhost bridge (default port 8787) that accepts the Anthropic Messages shape used by Claude Code and translates it to xAI's OpenAI-compatible Chat Completions API. The bridge handles text, Claude tool definitions, tool calls/tool results, non-streaming responses and a synthesized Anthropic SSE stream for Claude Code.
+
+The default `grok` profile uses `grok-build-0.1` because it is the lower-cost coding-oriented xAI model. Override it explicitly when needed:
+
+```bash
+alt-claude-grok --model grok-4.7
+```
+
+The public xAI API is pay-as-you-go. Grok is therefore never inserted into the automatic free-provider fallback chain.

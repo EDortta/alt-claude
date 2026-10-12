@@ -928,11 +928,13 @@ PY
 actual_model="${ANTHROPIC_MODEL:-${MODEL:-unknown}}"
 if [[ -f "$MODEL_STATE" || -x "$MODEL_STATE" ]]; then
     python3 "$MODEL_STATE" check-enabled "$actual_model"
-    python3 "$MODEL_STATE" record-use \
-        --profile "${ALT_CLAUDE_ACTIVE_PROFILE:-}" \
-        --provider "$USE" \
-        --model "$actual_model" \
-        --route "$USE" >/dev/null
+    if [[ "${ALT_CLAUDE_NO_RECORD_USE:-0}" != "1" ]]; then
+        python3 "$MODEL_STATE" record-use \
+            --profile "${ALT_CLAUDE_ACTIVE_PROFILE:-}" \
+            --provider "$USE" \
+            --model "$actual_model" \
+            --route "$USE" >/dev/null
+    fi
 fi
 
 if claude_json_print_mode; then

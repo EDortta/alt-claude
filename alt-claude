@@ -96,17 +96,16 @@ CONTEXTO E COMPACTAÇÃO
     alt-claude --profile north-mini-code --yolo \
       "Leia claude-handoff-SESSION_ID.md, confira o repositório e continue."
 
-FALLBACK DE MODELOS GRATUITOS
+MODELOS GRATUITOS
   Perfis OpenRouter :free fazem um preflight mínimo. Se a rota gratuita não
-  estiver disponível, alt-claude pode cair explicitamente para Codex e depois
-  Copilot, quando configurados. Nunca troca silenciosamente para API paga.
+  estiver disponível, alt-claude encerra com erro. Por padrão NÃO usa Codex,
+  Copilot ou qualquer provider pago/por assinatura como substituto.
 
-  Atenção: uma conta autenticada de Codex/Copilot pode estar sem quota. Como
-  essa quota não é exposta de forma confiável pelas integrações atuais, o
-  fallback pode ainda falhar. O --usage deixa essa incerteza explícita.
+  Para autorizar deliberadamente fallback para providers já configurados:
+    ALT_CLAUDE_ALLOW_FALLBACK=1 alt-claude --profile north-mini-code
 
-  Para desativar fallback:
-    ALT_CLAUDE_NO_FALLBACK=1 alt-claude --profile north-mini-code
+  ALT_CLAUDE_NO_FALLBACK=1 continua aceito e tem precedência, para garantir
+  comportamento fail-closed mesmo se ALLOW_FALLBACK estiver definido no shell.
 
 EXEMPLOS
   alt-claude profiles

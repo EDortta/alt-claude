@@ -12,7 +12,7 @@ CREDS="$TMP/credentials"
 TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
-python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/performance.py" "$ROOT/tools/xai-anthropic-bridge.py"
+python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/performance.py" "$ROOT/tools/xai-anthropic-bridge.py" "$ROOT/tools/openai-anthropic-bridge.py"
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash
@@ -176,6 +176,269 @@ for fn in ('start_copilot()', 'start_codex()', 'start_openrouter()', 'start_grok
     if 'export CLAUDE_CODE_AUTO_MODE_SERVER=0' not in block:
         raise SystemExit(f'{fn} does not force client-side auto classifier')
 PY
+
+# First block of direct free providers must be wired independently of OpenRouter.
+for provider in groq cohere google nvidia kilo freeinference aihubmix; do
+    grep -q "start_\${provider}()" "$ROOT/alt-claude-core" || { echo "Falha: provider ausente: $provider" >&2; exit 1; }
+done
+for profile in \
+    groq-gpt-oss-120b \
+    cohere-north-mini-code \
+    google-gemini-3.8-flash \
+    nvidia-deepseek-v4.1-flash \
+    kilo-north-mini-code \
+    freeinference-glm-5.3-flash \
+    aihubmix-glm-5.3-flash
+do
+    [[ -r "$ROOT/profiles/$profile.env" ]] || { echo "Falha: perfil free direto ausente: $profile" >&2; exit 1; }
+    grep -q '^FREE=1python3 - "$ROOT/tools/xai-anthropic-bridge.py" <<'PY'
+import importlib.util, json, sys
+path=sys.argv[1]
+spec=importlib.util.spec_from_file_location("xai_bridge", path)
+mod=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+payload={
+    "system":"You are a coding assistant.",
+    "messages":[
+        {"role":"user","content":[{"type":"text","text":"Read status"}]},
+        {"role":"assistant","content":[{"type":"tool_use","id":"tool_1","name":"get_status","input":{"repo":"demo"}}]},
+        {"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_1","content":"clean"}]},
+    ],
+    "tools":[{"name":"get_status","description":"repo status","input_schema":{"type":"object","properties":{"repo":{"type":"string"}}}}],
+    "tool_choice":{"type":"auto"},
+}
+msgs=mod._messages_to_openai(payload)
+assert msgs[0] == {"role":"system","content":"You are a coding assistant."}
+assert any(m.get("role")=="assistant" and m.get("tool_calls") for m in msgs)
+assert any(m.get("role")=="tool" and m.get("tool_call_id")=="tool_1" for m in msgs)
+tools=mod._tools_to_openai(payload)
+assert tools[0]["function"]["name"]=="get_status"
+assert mod._tool_choice_to_openai(payload["tool_choice"])=="auto"
+PY
+
+# Claude-compatible non-interactive JSON mode must fail fast and preserve errors as JSON.
+printf 'KIMI_API_KEY=test-key\n' >"$CREDS/kimi.env"
+cat >"$TMP/claude" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "${CLAUDE_CODE_MAX_RETRIES:-unset}" >"${ALT_CLAUDE_TEST_RETRIES:?}"
+printf '%s\n' '502 HTTP 403: {"code":"permission-denied","error":"blocked for test"}' >&2
+exit 1
+EOF
+chmod +x "$TMP/claude"
+set +e
+json_error="$(
+    PATH="$TMP:$PATH" \
+    ALT_CLAUDE_CREDENTIALS_DIR="$CREDS" \
+    ALT_CLAUDE_TEST_RETRIES="$TMP/retries" \
+        "$BIN_DIR/alt-claude" --use kimi -p "ping" --output-format json 2>/dev/null
+)"
+json_status=$?
+set -e
+[[ $json_status -eq 1 ]] || { echo "Falha: JSON probe deveria preservar exit code 1" >&2; exit 1; }
+[[ "$(cat "$TMP/retries")" == "0" ]] || { echo "Falha: JSON probe deveria desabilitar retries por padrão" >&2; exit 1; }
+python3 - "$json_error" <<'PY'
+import json, sys
+obj=json.loads(sys.argv[1])
+assert obj["type"] == "error"
+assert obj["ok"] is False
+assert obj["provider"] == "kimi"
+assert obj["http_status"] in (403, 502)
+assert obj["error_type"] == "permission-denied"
+assert "blocked for test" in obj["message"]
+PY
+
+# Performance benchmark ranks enabled free profiles without touching paid/subscription routes.
+PERF_PROFILES="$TMP/perf-profiles"
+mkdir -p "$PERF_PROFILES"
+cat >"$PERF_PROFILES/a.env" <<'EOF'
+PROVIDER=openrouter
+MODEL=test/a:free
+DISPLAY_NAME="A"
+STATUS=active
+PRIVACY=review
+CONTEXT_WINDOW=1000
+SAFE_CONTEXT_TOKENS=800
+AUTO_COMPACT_PCT=60
+EOF
+cat >"$PERF_PROFILES/b.env" <<'EOF'
+PROVIDER=openrouter
+MODEL=test/b:free
+DISPLAY_NAME="B"
+STATUS=active
+PRIVACY=review
+CONTEXT_WINDOW=1000
+SAFE_CONTEXT_TOKENS=800
+AUTO_COMPACT_PCT=60
+EOF
+cat >"$PERF_PROFILES/paid.env" <<'EOF'
+PROVIDER=grok
+MODEL=grok-4.7
+DISPLAY_NAME="Paid"
+STATUS=active
+PRIVACY=review
+CONTEXT_WINDOW=1000
+SAFE_CONTEXT_TOKENS=800
+AUTO_COMPACT_PCT=60
+EOF
+cat >"$TMP/fake-perf-alt-claude" <<'EOF'
+#!/usr/bin/env bash
+profile=""
+prev=""
+for arg in "$@"; do
+  if [[ "$prev" == "--profile" ]]; then profile="$arg"; fi
+  prev="$arg"
+done
+case "$profile" in
+  a) result='{"arithmetic":139,"code":[4,16],"logic":12}' ;;
+  b) result='{"arithmetic":139,"code":[4,16],"logic":11}' ;;
+  paid) echo "paid profile must not run" >&2; exit 99 ;;
+  *) exit 2 ;;
+esac
+python3 - "$result" <<'PY'
+import json, sys
+print(json.dumps({"type":"result","is_error":False,"result":sys.argv[1]}))
+PY
+EOF
+chmod +x "$TMP/fake-perf-alt-claude"
+perf_out="$(
+  ALT_CLAUDE_BIN="$TMP/fake-perf-alt-claude" \
+  ALT_CLAUDE_PROFILE_DIR="$PERF_PROFILES" \
+  ALT_CLAUDE_STATE_DIR="$TMP/perf-state" \
+  ALT_CLAUDE_CONFIG_DIR="$TMP/perf-config" \
+    "$BIN_DIR/alt-claude" --list-performance --json
+)"
+python3 - "$perf_out" <<'PY'
+import json, sys
+rows=json.loads(sys.argv[1])
+assert [r["profile"] for r in rows] == ["a","b"]
+assert rows[0]["score"] == 3
+assert rows[1]["score"] == 2
+PY
+
+# Model state: last-model is project-local, evaluations/disable state are shared globally.
+MODEL_STATE_DIR="$TMP/model-state"
+MODEL_CONFIG_DIR="$TMP/model-config"
+PROJECT_A="$TMP/project-a"
+PROJECT_B="$TMP/project-b"
+mkdir -p "$PROJECT_A" "$PROJECT_B"
+git -C "$PROJECT_A" init -q
+git -C "$PROJECT_B" init -q
+
+(
+    cd "$PROJECT_A"
+    ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+        python3 "$BIN_DIR/alt-claude-model-state" record-use \
+        --profile north-mini-code --provider openrouter --model cohere/north-mini-code:free
+    last="$(ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" "$BIN_DIR/alt-claude" --last-model)"
+    [[ "$last" == *"cohere/north-mini-code:free via openrouter"* ]] || { echo "Falha: --last-model incorreto" >&2; exit 1; }
+    ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+        "$BIN_DIR/alt-claude" --evaluate 5 >/dev/null
+)
+(
+    cd "$PROJECT_B"
+    set +e
+    ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+        "$BIN_DIR/alt-claude" --last-model >/dev/null 2>"$TMP/project-b-last.err"
+    st=$?
+    set -e
+    [[ $st -eq 2 ]] || { echo "Falha: --last-model deve ser isolado por Git root" >&2; exit 1; }
+)
+[[ -s "$MODEL_STATE_DIR/evaluations.jsonl" ]] || { echo "Falha: avaliação compartilhada não registrada" >&2; exit 1; }
+
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+    "$BIN_DIR/alt-claude" --disable north-mini-code >/dev/null
+set +e
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+ALT_CLAUDE_BIN="$TMP/fake-alt-claude" ALT_CLAUDE_TEST_CAPTURE="$CAPTURE" \
+ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
+    "$BIN_DIR/alt-claude-north-mini-code" "ping" >/dev/null 2>"$TMP/disabled.err"
+disabled_status=$?
+set -e
+[[ $disabled_status -eq 78 ]] || { echo "Falha: modelo disabled deveria bloquear uso" >&2; exit 1; }
+grep -q 'ALERTA: modelo desabilitado' "$TMP/disabled.err"
+
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+    "$BIN_DIR/alt-claude" --enable north-mini-code >/dev/null
+ALT_CLAUDE_STATE_DIR="$MODEL_STATE_DIR" ALT_CLAUDE_CONFIG_DIR="$MODEL_CONFIG_DIR" \
+    python3 "$BIN_DIR/alt-claude-model-state" check-enabled cohere/north-mini-code:free
+
+# Synthetic oversized session: North must refuse resume before hitting provider limit.
+SESSION_ID="session-oversized"
+SESSION_DIR="$TEST_HOME/.claude/projects/-tmp-project"
+mkdir -p "$SESSION_DIR"
+cat >"$SESSION_DIR/$SESSION_ID.jsonl" <<'EOF'
+{"type":"user","sessionId":"session-oversized","cwd":"/tmp/project","gitBranch":"development","message":{"role":"user","content":"continue"}}
+{"type":"assistant","sessionId":"session-oversized","cwd":"/tmp/project","gitBranch":"development","message":{"role":"assistant","content":[{"type":"text","text":"working"}],"usage":{"input_tokens":10000,"cache_read_input_tokens":190000,"cache_creation_input_tokens":0}}}
+EOF
+
+set +e
+HOME="$TEST_HOME" \
+ALT_CLAUDE_NO_FALLBACK=1 \
+ALT_CLAUDE_BIN="$TMP/fake-alt-claude" \
+ALT_CLAUDE_PROFILE_DIR="$DATA_DIR/profiles" \
+ALT_CLAUDE_COMPACTOR="$BIN_DIR/alt-claude-session-compact" \
+    "$BIN_DIR/alt-claude-north-mini-code" --resume "$SESSION_ID" >/dev/null 2>"$TMP/guard.err"
+guard_status=$?
+set -e
+[[ $guard_status -eq 75 ]] || { echo "Falha: context guard deveria retornar 75, retornou $guard_status" >&2; cat "$TMP/guard.err" >&2; exit 1; }
+grep -q 'alt-claude compact' "$TMP/guard.err"
+
+# Offline compactor generates a reusable handoff without any API/model call.
+HOME="$TEST_HOME" python3 "$ROOT/tools/session-compact.py" "$SESSION_ID" -o "$TMP/handoff.md" >/dev/null
+grep -q 'Claude Code session handoff' "$TMP/handoff.md"
+grep -q '/tmp/project' "$TMP/handoff.md"
+grep -q 'development' "$TMP/handoff.md"
+
+# Every profile declares context AND privacy policy explicitly.
+for profile in "$ROOT"/profiles/*.env; do
+    (
+        unset PROVIDER MODEL DISPLAY_NAME STATUS PRIVACY CONTEXT_WINDOW SAFE_CONTEXT_TOKENS AUTO_COMPACT_PCT
+        # shellcheck disable=SC1090
+        source "$profile"
+        : "${PROVIDER:?PROVIDER ausente em $profile}"
+        : "${MODEL:?MODEL ausente em $profile}"
+        : "${DISPLAY_NAME:?DISPLAY_NAME ausente em $profile}"
+        : "${STATUS:?STATUS ausente em $profile}"
+        : "${PRIVACY:?PRIVACY ausente em $profile}"
+        case "$PRIVACY" in sensitive_ok|review|public_only) ;; *) echo "PRIVACY inválido: $PRIVACY em $profile" >&2; exit 1 ;; esac
+        : "${CONTEXT_WINDOW:?CONTEXT_WINDOW ausente em $profile}"
+        : "${SAFE_CONTEXT_TOKENS:?SAFE_CONTEXT_TOKENS ausente em $profile}"
+        : "${AUTO_COMPACT_PCT:?AUTO_COMPACT_PCT ausente em $profile}"
+        (( SAFE_CONTEXT_TOKENS < CONTEXT_WINDOW ))
+    )
+done
+
+for launcher in laguna nemotron north-mini-code grok laguna-xs nemotron-lightning nex-pro nex-mini inkling-small inkling deepseek-v4-flash glm-5.3-flash free; do
+    [[ -x "$BIN_DIR/alt-claude-$launcher" ]] || { echo "Falha: launcher ausente: alt-claude-$launcher" >&2; exit 1; }
+done
+
+# Unified entry point groups privacy classes visibly.
+profiles="$($BIN_DIR/alt-claude profiles)"
+grep -q 'REVISAR PRIVACIDADE' <<<"$profiles"
+grep -q 'NÃO USAR COM CÓDIGO SENSÍVEL' <<<"$profiles"
+grep -q 'north-mini-code' <<<"$profiles"
+grep -q 'inkling' <<<"$profiles"
+
+# Policy engine uses a declarative project file and blocks REVIEW in sensitive mode.
+POLICY_PROJECT="$TMP/policy-project"
+mkdir -p "$POLICY_PROJECT"
+git -C "$POLICY_PROJECT" init -q
+(
+  cd "$POLICY_PROJECT"
+  "$BIN_DIR/alt-claude" policy init sensitive >/dev/null
+  grep -q '^mode=sensitive$' .alt-claude/config
+  grep -q '^deny_privacy=review,public_only$' .alt-claude/config
+  set +e
+  python3 "$BIN_DIR/alt-claude-policy" check --profile north-mini-code --provider openrouter --privacy review >/dev/null 2>"$TMP/policy.err"
+  st=$?
+  set -e
+  [[ $st -eq 77 ]] || { echo "Falha: política sensível deveria bloquear REVIEW" >&2; exit 1; }
+  grep -q 'BLOCKED by project policy' "$TMP/policy.err"
+)
+
+echo "OK: help, perfis, privacy policy, --yolo, --resume, context guard, offline compact e fallback"
+ "$ROOT/profiles/$profile.env" || { echo "Falha: perfil não marcado FREE=1: $profile" >&2; exit 1; }
+done
 
 # Grok bridge translates Anthropic messages/tools into xAI/OpenAI-compatible structures without network access.
 python3 - "$ROOT/tools/xai-anthropic-bridge.py" <<'PY'

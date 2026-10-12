@@ -206,6 +206,7 @@ inkling-small
 inkling
 deepseek-v4-flash
 glm-5.3-flash
+grok
 free
 ```
 
@@ -245,13 +246,31 @@ The check compares each OpenRouter profile with the live catalog and reports whe
 
 Claude Code's server-side auto-mode classifier requires gateways to pass fields such as `safeguards` and response data such as `safeguard_results` through unchanged. The current Codex proxy and OpenRouter routes used by `alt-claude` are not compatible with that pass-through contract.
 
-For the current Copilot (`127.0.0.1:4141`), Codex (`127.0.0.1:8765`) and OpenRouter routes, `alt-claude` sets:
+For the current Copilot (`127.0.0.1:4141`), Codex (`127.0.0.1:8765`), Grok bridge (`127.0.0.1:8787`) and OpenRouter routes, `alt-claude` sets:
 
 ```bash
 CLAUDE_CODE_AUTO_MODE_SERVER=0
 ```
 
 before Claude Code starts. Auto mode remains available, but classifier checks use Claude Code's own model requests and therefore consume the provider's normal quota. This avoids the failure mode where Bash commands are denied because the server-side classifier returned no verdict. Set `CLAUDE_CODE_AUTO_MODE_SERVER=1` explicitly only when testing a gateway that actually implements the classifier pass-through contract.
+
+## Grok through Claude Code
+
+`alt-claude-grok` keeps the Claude Code console while sending inference to the xAI API through a local bridge:
+
+```text
+Claude Code -> localhost:8787 -> xAI API
+```
+
+The default profile uses the coding-oriented `grok-build-0.1`. Override it explicitly when needed:
+
+```bash
+alt-claude-grok
+alt-claude-grok --model grok-4.7
+alt-claude --use grok --model grok-4.7
+```
+
+The bridge is installed by `./install.sh` and reads `~/.config/credentials/personal/ai/grok.env`. The xAI public API is pay-as-you-go, so Grok is never selected silently by the free fallback chain.
 
 ## Direct provider mode
 
@@ -260,6 +279,7 @@ The original provider interface remains available:
 ```bash
 alt-claude --use copilot
 alt-claude --use codex --yolo
+alt-claude --use grok --model grok-build-0.1
 alt-claude --use openrouter --model <provider/model>
 alt-claude --usage
 ```

@@ -290,14 +290,15 @@ usage_grok() {
         source "$file"
         set +a
 
-        if [ -z "${GROK_API_KEY:-}" ]; then
-            print_usage_row "grok" "SEM CHAVE" "-" "GROK_API_KEY ausente"
+        local grok_key="${GROK_API_KEY:-${XAI_API_KEY:-}}"
+        if [ -z "$grok_key" ]; then
+            print_usage_row "grok" "SEM CHAVE" "-" "GROK_API_KEY/XAI_API_KEY ausente"
             return
         fi
 
         local raw
         raw="$(http_get "https://api.x.ai/v1/models" \
-            -H "Authorization: Bearer ${GROK_API_KEY}")"
+            -H "Authorization: Bearer ${grok_key}")"
         split_http "$raw"
 
         if [ "$HTTP_STATUS" = "200" ]; then
@@ -476,7 +477,7 @@ Providers disponíveis:
   codex         Codex via claude-codex-proxy
   openrouter    OpenRouter Anthropic-compatible
   kimi          Kimi Code Anthropic-compatible
-  grok          não direto; use OpenRouter ou Grok CLI
+  grok          xAI API via bridge Anthropic local
   nvidia        requer NIM Anthropic-compatible ou bridge
 EOF
             exit 0
@@ -688,30 +689,57 @@ start_kimi() {
 }
 
 start_grok() {
+    local port="${ALT_CLAUDE_GROK_PORT:-8787}"
+    local base_url="http://127.0.0.1:${port}"
+    local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-grok.log"
+    local selected_model
+    local bridge
+
     load_credentials grok
 
-    : "${GROK_API_KEY:?GROK_API_KEY não definida}"
+    local grok_key="${GROK_API_KEY:-${XAI_API_KEY:-}}"
+    [[ -n "$grok_key" ]] || die "GROK_API_KEY/XAI_API_KEY não definida em ${CREDENTIALS_DIR}/grok.env"
 
-    cat >&2 <<'EOF'
-Grok direto não será iniciado pelo Claude Code.
+    selected_model="${MODEL:-${GROK_MODEL:-grok-build-0.1}}"
 
-Motivo:
-  a xAI depreciou sua API Anthropic-compatible.
+    bridge="${ALT_CLAUDE_GROK_BRIDGE:-}"
+    if [[ -z "$bridge" ]]; then
+        bridge="$(command -v alt-claude-grok-bridge 2>/dev/null || true)"
+    fi
+    [[ -n "$bridge" && -x "$bridge" ]] || die "bridge Grok não encontrado. Rode ./install.sh novamente."
 
-Alternativas:
+    have curl || die "curl não está no PATH"
+    have python3 || die "python3 não está no PATH"
 
-  1. usar Grok através do OpenRouter:
+    local pids
+    pids="$(pgrep -f "alt-claude-grok-bridge.*--port ${port}" 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+        kill $pids 2>/dev/null || true
+        sleep 0.3
+    fi
 
-       alt-claude --use openrouter --model <modelo-xai>
+    XAI_API_KEY="$grok_key" \
+    XAI_MODEL="$selected_model" \
+    XAI_REASONING_EFFORT="${GROK_REASONING_EFFORT:-low}" \
+    nohup "$bridge" --host 127.0.0.1 --port "$port" >"$log" 2>&1 &
 
-  2. usar o agente Grok nativo:
+    if ! wait_http "${base_url}/v1/models" 50; then
+        echo "Gateway Grok não iniciou." >&2
+        echo "Log: $log" >&2
+        tail -n 40 "$log" 2>/dev/null || true
+        exit 1
+    fi
 
-       grok
+    export ANTHROPIC_BASE_URL="$base_url"
+    export ANTHROPIC_API_KEY="grok-local-bridge"
 
-Não vou colocar um endpoint depreciado silenciosamente no alt-claude.
-EOF
+    if [[ "${ALT_CLAUDE_ALLOW_SERVER_AUTO_MODE:-0}" == "1" ]]; then
+        echo "alt-claude: aviso: server-side auto mode foi forçado para um gateway não verificado." >&2
+    else
+        export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    fi
 
-    exit 2
+    set_all_models "$selected_model"
 }
 
 start_nvidia() {

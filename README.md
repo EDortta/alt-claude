@@ -212,25 +212,27 @@ free
 
 Experimental means the integration is wired but still needs repeated real software-engineering tasks before promotion to active.
 
-## Free-route fallback
+## Free profiles are fail-closed
 
-Named free profiles try OpenRouter first. A minimal preflight detects exhausted/blocked free routes. If unavailable, `alt-claude` falls back explicitly to already-configured subscription providers:
+Named OpenRouter `:free` profiles do a minimal preflight before Claude Code starts. If the requested free route is unavailable, exhausted or blocked, `alt-claude` stops with an error.
+
+It does **not** use Codex, Copilot, Grok or any paid/subscription provider automatically. Selecting a free profile means that only the requested free route is allowed by default.
+
+When OpenRouter answers with the daily free quota error `429 ... free-models-per-day`, `alt-claude` stores a local marker under `${XDG_STATE_HOME:-~/.local/state}/alt-claude/`. Further launches during the same UTC day skip the already-exhausted free route and fail immediately. The marker expires automatically when the UTC date changes.
+
+A fallback remains available only as an explicit opt-in:
+
+```bash
+ALT_CLAUDE_ALLOW_FALLBACK=1 alt-claude --profile north-mini-code
+```
+
+The opt-in fallback order defaults to:
 
 ```text
 codex -> copilot
 ```
 
-When OpenRouter answers with the daily free quota error `429 ... free-models-per-day`, `alt-claude` records a local marker under `${XDG_STATE_HOME:-~/.local/state}/alt-claude/`. Further launches during the same UTC day skip OpenRouter free immediately instead of spending another request on a route already known to be exhausted. The marker expires automatically when the UTC date changes.
-
-The fallback is announced and never silently selects a pay-as-you-go API. The model necessarily changes, while `--yolo`, `--resume` and other Claude arguments are preserved.
-
-A Claude Code session that is already running cannot transparently switch backend after an in-session 429 with the current direct OpenRouter route. Resume or relaunch through `alt-claude`; the next invocation performs the preflight, records the exhausted daily quota when applicable, and selects the fallback. Transparent mid-session failover would require a compatible local gateway that owns the request path.
-
-Disable fallback for diagnosis:
-
-```bash
-ALT_CLAUDE_NO_FALLBACK=1 alt-claude --profile north-mini-code --yolo
-```
+`ALT_CLAUDE_NO_FALLBACK=1` is still accepted and takes precedence over `ALT_CLAUDE_ALLOW_FALLBACK=1`, so scripts can guarantee fail-closed behavior even if the shell environment enables fallback.
 
 ## Live profile validation
 

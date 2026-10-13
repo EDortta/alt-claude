@@ -230,6 +230,12 @@ Providers conhecidos pelo core:
   kimi
   grok
   nvidia
+  groq
+  cohere
+  google
+  kilo
+  freeinference
+  aihubmix
 
 Exemplos:
   alt-claude --use codex --yolo
@@ -395,7 +401,10 @@ case "${1:-}" in
     [[ -f "$USAGE_BIN" || -x "$USAGE_BIN" ]] || { echo "Erro: relatório de uso não encontrado: $USAGE_BIN" >&2; exit 2; }
     exec python3 "$USAGE_BIN"
     ;;
-  --list-performance)
+  --list-performance|--list-peformance)
+    if [[ "${1:-}" == "--list-peformance" ]]; then
+      echo "Aviso: --list-peformance é aceito por compatibilidade; o nome correto é --list-performance." >&2
+    fi
     shift
     [[ -f "$PERFORMANCE_BIN" || -x "$PERFORMANCE_BIN" ]] || { echo "Erro: benchmark não encontrado: $PERFORMANCE_BIN" >&2; exit 2; }
     exec python3 "$PERFORMANCE_BIN" "$@"

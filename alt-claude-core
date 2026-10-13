@@ -766,12 +766,12 @@ start_openai_compat() {
     local api_key="$3"
     local default_model="$4"
     local port="$5"
-    local selected_model="\${MODEL:-$default_model}"
+    local selected_model="${MODEL:-$default_model}"
     local bridge
-    local local_base="http://127.0.0.1:\${port}"
-    local log="\${XDG_RUNTIME_DIR:-/tmp}/alt-claude-\${provider}.log"
+    local local_base="http://127.0.0.1:${port}"
+    local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-${provider}.log"
 
-    bridge="\${ALT_CLAUDE_OPENAI_BRIDGE:-}"
+    bridge="${ALT_CLAUDE_OPENAI_BRIDGE:-}"
     if [[ -z "$bridge" ]]; then
         bridge="$(command -v alt-claude-openai-bridge 2>/dev/null || true)"
     fi
@@ -781,7 +781,7 @@ start_openai_compat() {
     have python3 || die "python3 não está no PATH"
 
     local pids
-    pids="$(pgrep -f "alt-claude-openai-bridge.*--port \${port}" 2>/dev/null || true)"
+    pids="$(pgrep -f "alt-claude-openai-bridge.*--port ${port}" 2>/dev/null || true)"
     if [[ -n "$pids" ]]; then
         kill $pids 2>/dev/null || true
         sleep 0.2
@@ -793,15 +793,15 @@ start_openai_compat() {
     OPENAI_COMPAT_MODEL="$selected_model" \
     nohup "$bridge" --host 127.0.0.1 --port "$port" >"$log" 2>&1 &
 
-    if ! wait_http "\${local_base}/v1/models" 50; then
-        echo "Gateway \${provider} não iniciou." >&2
+    if ! wait_http "${local_base}/v1/models" 50; then
+        echo "Gateway ${provider} não iniciou." >&2
         echo "Log: $log" >&2
         tail -n 40 "$log" 2>/dev/null || true
         exit 1
     fi
 
     export ANTHROPIC_BASE_URL="$local_base"
-    export ANTHROPIC_API_KEY="\${provider}-local-bridge"
+    export ANTHROPIC_API_KEY="${provider}-local-bridge"
     export CLAUDE_CODE_AUTO_MODE_SERVER=0
     set_all_models "$selected_model"
 }
@@ -811,7 +811,7 @@ start_anthropic_native() {
     local base_url="$2"
     local api_key="$3"
     local default_model="$4"
-    local selected_model="\${MODEL:-$default_model}"
+    local selected_model="${MODEL:-$default_model}"
 
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="$api_key"
@@ -821,43 +821,43 @@ start_anthropic_native() {
 
 start_groq() {
     load_credentials groq
-    : "\${GROQ_API_KEY:?GROQ_API_KEY não definida}"
-    start_openai_compat groq "https://api.groq.com/openai/v1" "$GROQ_API_KEY" "openai/gpt-oss-120b" "\${ALT_CLAUDE_GROQ_PORT:-8791}"
+    : "${GROQ_API_KEY:?GROQ_API_KEY não definida}"
+    start_openai_compat groq "https://api.groq.com/openai/v1" "$GROQ_API_KEY" "openai/gpt-oss-120b" "${ALT_CLAUDE_GROQ_PORT:-8791}"
 }
 
 start_cohere() {
     load_credentials cohere
-    : "\${COHERE_API_KEY:?COHERE_API_KEY não definida}"
-    start_openai_compat cohere "https://api.cohere.com/compatibility/v1" "$COHERE_API_KEY" "north-mini-code-1-0" "\${ALT_CLAUDE_COHERE_PORT:-8792}"
+    : "${COHERE_API_KEY:?COHERE_API_KEY não definida}"
+    start_openai_compat cohere "https://api.cohere.com/compatibility/v1" "$COHERE_API_KEY" "north-mini-code-1-0" "${ALT_CLAUDE_COHERE_PORT:-8792}"
 }
 
 start_google() {
     load_credentials google
-    local key="\${GOOGLE_AI_STUDIO_API_KEY:-\${GEMINI_API_KEY:-}}"
+    local key="${GOOGLE_AI_STUDIO_API_KEY:-${GEMINI_API_KEY:-}}"
     [[ -n "$key" ]] || die "GOOGLE_AI_STUDIO_API_KEY/GEMINI_API_KEY não definida"
-    start_openai_compat google "https://generativelanguage.googleapis.com/v1beta/openai" "$key" "gemini-3.8-flash" "\${ALT_CLAUDE_GOOGLE_PORT:-8793}"
+    start_openai_compat google "https://generativelanguage.googleapis.com/v1beta/openai" "$key" "gemini-3.8-flash" "${ALT_CLAUDE_GOOGLE_PORT:-8793}"
 }
 
 start_nvidia() {
     load_credentials nvidia
-    local key="\${NVIDIA_NIM_API_KEY:-\${NVIDIA_API_KEY:-}}"
+    local key="${NVIDIA_NIM_API_KEY:-${NVIDIA_API_KEY:-}}"
     [[ -n "$key" ]] || die "NVIDIA_NIM_API_KEY/NVIDIA_API_KEY não definida"
-    start_openai_compat nvidia "https://integrate.api.nvidia.com/v1" "$key" "deepseek-ai/deepseek-v4.1-flash" "\${ALT_CLAUDE_NVIDIA_PORT:-8794}"
+    start_openai_compat nvidia "https://integrate.api.nvidia.com/v1" "$key" "deepseek-ai/deepseek-v4.1-flash" "${ALT_CLAUDE_NVIDIA_PORT:-8794}"
 }
 
 start_kilo() {
-    start_openai_compat kilo "https://api.kilo.ai/api/gateway" "" "cohere/north-mini-code:free" "\${ALT_CLAUDE_KILO_PORT:-8795}"
+    start_openai_compat kilo "https://api.kilo.ai/api/gateway" "" "cohere/north-mini-code:free" "${ALT_CLAUDE_KILO_PORT:-8795}"
 }
 
 start_freeinference() {
     load_credentials freeinference
-    : "\${FREEINFERENCE_API_KEY:?FREEINFERENCE_API_KEY não definida}"
+    : "${FREEINFERENCE_API_KEY:?FREEINFERENCE_API_KEY não definida}"
     start_anthropic_native freeinference "https://freeinference.org/anthropic" "$FREEINFERENCE_API_KEY" "glm-5.3-flash"
 }
 
 start_aihubmix() {
     load_credentials aihubmix
-    : "\${AIHUBMIX_API_KEY:?AIHUBMIX_API_KEY não definida}"
+    : "${AIHUBMIX_API_KEY:?AIHUBMIX_API_KEY não definida}"
     start_anthropic_native aihubmix "https://aihubmix.com" "$AIHUBMIX_API_KEY" "coding-glm-5.3-flash-free"
 }
 

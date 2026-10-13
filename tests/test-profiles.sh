@@ -177,6 +177,12 @@ for fn in ('start_copilot()', 'start_codex()', 'start_openrouter()', 'start_grok
         raise SystemExit(f'{fn} does not force client-side auto classifier')
 PY
 
+# Direct-provider shell variables must expand at runtime (not remain escaped literals).
+if sed -n '/^start_openai_compat()/,/^case "$USE" in/p' "$ROOT/alt-claude-core" | grep -Fq '\${'; then
+    echo "Falha: variáveis escapadas literalmente no bloco de providers diretos" >&2
+    exit 1
+fi
+
 # First block of direct free providers must be wired independently of OpenRouter.
 for provider in groq cohere google nvidia kilo freeinference aihubmix; do
     grep -q "start_\${provider}()" "$ROOT/alt-claude-core" || { echo "Falha: provider ausente: $provider" >&2; exit 1; }

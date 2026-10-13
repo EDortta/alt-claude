@@ -84,6 +84,8 @@ def is_free_profile(meta: dict[str, str]) -> bool:
 
 def classify_launch_failure(returncode: int, stdout: str, stderr: str) -> str:
     combined = "\n".join(x for x in (stderr.strip(), stdout.strip()) if x).lower()
+    if "blocked by project policy" in combined or "privacy class" in combined and "is denied" in combined:
+        return "project-policy-blocked"
     if "credencial não encontrada" in combined or "api_key não definida" in combined or "api key" in combined and "não definida" in combined:
         return "credential-missing"
     if "cota diária openrouter free esgotada" in combined or "free-models-per-day" in combined:

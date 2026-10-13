@@ -12,7 +12,7 @@ CREDS="$TMP/credentials"
 TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
-python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/performance.py" "$ROOT/tools/xai-anthropic-bridge.py" "$ROOT/tools/openai-anthropic-bridge.py"
+python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/performance.py" "$ROOT/tools/xai-anthropic-bridge.py" "$ROOT/tools/openai-anthropic-bridge.py" "$ROOT/scripts/test-free-models.py"
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash

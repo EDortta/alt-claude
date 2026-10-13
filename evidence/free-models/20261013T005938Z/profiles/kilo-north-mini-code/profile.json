@@ -1,0 +1,9 @@
+{
+  "profile": "kilo-north-mini-code",
+  "provider": "kilo",
+  "model": "cohere/north-mini-code:free",
+  "logical_model": "north-mini-code",
+  "status": "experimental",
+  "privacy": "public_only",
+  "free": true
+}

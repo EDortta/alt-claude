@@ -1,0 +1,9 @@
+{
+  "profile": "laguna-xs",
+  "provider": "openrouter",
+  "model": "poolside/laguna-xs-2.1:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

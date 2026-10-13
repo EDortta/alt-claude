@@ -1,0 +1,1 @@
+/home/esteban/.local/bin/alt-claude --profile free -p 'Responda SOMENTE com JSON valido, sem markdown. Resolva: arithmetic=37*4-9; code=resultado de [x*x for x in [1,2,3,4] if x%2==0]; logic=menor inteiro maior que 10 divisivel por 3 e por 4. Formato exato: {"arithmetic":N,"code":[...],"logic":N}' --output-format json

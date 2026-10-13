@@ -1,0 +1,14 @@
+{
+  "profile": "freeinference-glm-5.3-flash",
+  "provider": "freeinference",
+  "model": "glm-5.3-flash",
+  "logical_model": "glm-5.3-flash",
+  "seconds": 0.097,
+  "returncode": 1,
+  "timed_out": false,
+  "status": "credential-missing",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

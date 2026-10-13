@@ -1,0 +1,14 @@
+{
+  "profile": "aihubmix-glm-5.3-flash",
+  "provider": "aihubmix",
+  "model": "coding-glm-5.3-flash-free",
+  "logical_model": "glm-5.3-flash",
+  "seconds": 0.094,
+  "returncode": 1,
+  "timed_out": false,
+  "status": "credential-missing",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

@@ -1,0 +1,14 @@
+{
+  "profile": "nvidia-deepseek-v4.1-flash",
+  "provider": "nvidia",
+  "model": "deepseek-ai/deepseek-v4.1-flash",
+  "logical_model": "deepseek-v4.1-flash",
+  "seconds": 60.059,
+  "returncode": 124,
+  "timed_out": true,
+  "status": "timeout",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

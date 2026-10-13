@@ -1,0 +1,79 @@
+{
+  "run_id": "20261013T005938Z",
+  "timestamp_utc": "2026-10-13T00:59:38.844405+00:00",
+  "cwd": "/home/esteban/Sync/Projects/AI/alt-claude",
+  "repo_root": "/home/esteban/Sync/Projects/AI/alt-claude",
+  "profile_dir": "/home/esteban/Sync/Projects/AI/alt-claude/profiles",
+  "alt_claude": "/home/esteban/.local/bin/alt-claude",
+  "binaries": [
+    {
+      "command": "alt-claude",
+      "path": "/home/esteban/.local/bin/alt-claude",
+      "executable": true,
+      "realpath": "/home/esteban/.local/bin/alt-claude",
+      "mode": "0o755"
+    },
+    {
+      "command": "alt-claude-core",
+      "path": "/home/esteban/.local/bin/alt-claude-core",
+      "executable": true,
+      "realpath": "/home/esteban/.local/bin/alt-claude-core",
+      "mode": "0o755"
+    },
+    {
+      "command": "alt-claude-profile",
+      "path": "/home/esteban/.local/bin/alt-claude-profile",
+      "executable": true,
+      "realpath": "/home/esteban/.local/bin/alt-claude-profile",
+      "mode": "0o755"
+    },
+    {
+      "command": "alt-claude-openai-bridge",
+      "path": "/home/esteban/.local/bin/alt-claude-openai-bridge",
+      "executable": true,
+      "realpath": "/home/esteban/.local/bin/alt-claude-openai-bridge",
+      "mode": "0o755"
+    },
+    {
+      "command": "alt-claude-grok-bridge",
+      "path": "/home/esteban/.local/bin/alt-claude-grok-bridge",
+      "executable": true,
+      "realpath": "/home/esteban/.local/bin/alt-claude-grok-bridge",
+      "mode": "0o755"
+    },
+    {
+      "command": "claude",
+      "path": "/home/esteban/.local/bin/claude",
+      "executable": true,
+      "realpath": "/home/esteban/.local/share/claude/versions/2.1.296",
+      "mode": "0o755"
+    },
+    {
+      "command": "python3",
+      "path": "/usr/bin/python3",
+      "executable": true,
+      "realpath": "/usr/bin/python3.10",
+      "mode": "0o755"
+    }
+  ],
+  "git": {
+    "branch": "development",
+    "head": "f5709e2d641d683efab8fcceda6d51c8b7d2d8f4",
+    "status": "?? .alt-claude/\n?? scripts/__pycache__/\n?? setup-alt-claude-slave-client.sh\n?? tools/__pycache__/\n"
+  },
+  "safety": {
+    "free_only": true,
+    "fallback_disabled": true,
+    "ignore_project_policy_for_probe": true,
+    "record_use_disabled": true
+  },
+  "prompt": "Responda SOMENTE com JSON valido, sem markdown. Resolva: arithmetic=37*4-9; code=resultado de [x*x for x in [1,2,3,4] if x%2==0]; logic=menor inteiro maior que 10 divisivel por 3 e por 4. Formato exato: {\"arithmetic\":N,\"code\":[...],\"logic\":N}",
+  "expected": {
+    "arithmetic": 139,
+    "code": [
+      4,
+      16
+    ],
+    "logic": 12
+  }
+}

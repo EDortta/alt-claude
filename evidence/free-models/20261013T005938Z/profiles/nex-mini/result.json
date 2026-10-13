@@ -1,0 +1,14 @@
+{
+  "profile": "nex-mini",
+  "provider": "openrouter",
+  "model": "nex-agi/nex-n2.5-mini:free",
+  "logical_model": null,
+  "seconds": 0.32,
+  "returncode": 75,
+  "timed_out": false,
+  "status": "provider-unavailable",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

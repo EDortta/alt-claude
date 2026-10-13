@@ -1,0 +1,9 @@
+{
+  "profile": "groq-gpt-oss-120b",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "logical_model": "gpt-oss-120b",
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

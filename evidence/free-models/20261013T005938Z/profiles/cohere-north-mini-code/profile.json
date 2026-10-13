@@ -1,0 +1,9 @@
+{
+  "profile": "cohere-north-mini-code",
+  "provider": "cohere",
+  "model": "north-mini-code-1-0",
+  "logical_model": "north-mini-code",
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

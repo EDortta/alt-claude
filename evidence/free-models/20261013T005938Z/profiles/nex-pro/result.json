@@ -1,0 +1,14 @@
+{
+  "profile": "nex-pro",
+  "provider": "openrouter",
+  "model": "nex-agi/nex-n2.5-pro:free",
+  "logical_model": null,
+  "seconds": 0.31,
+  "returncode": 75,
+  "timed_out": false,
+  "status": "provider-unavailable",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

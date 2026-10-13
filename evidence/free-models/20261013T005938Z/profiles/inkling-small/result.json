@@ -1,0 +1,14 @@
+{
+  "profile": "inkling-small",
+  "provider": "openrouter",
+  "model": "thinkingmachines/inkling-small:free",
+  "logical_model": null,
+  "seconds": 0.325,
+  "returncode": 75,
+  "timed_out": false,
+  "status": "provider-unavailable",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

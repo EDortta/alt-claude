@@ -1,0 +1,9 @@
+{
+  "profile": "dots3-note",
+  "provider": "openrouter",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

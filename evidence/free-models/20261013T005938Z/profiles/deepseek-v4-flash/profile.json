@@ -1,0 +1,9 @@
+{
+  "profile": "deepseek-v4-flash",
+  "provider": "openrouter",
+  "model": "deepseek/deepseek-v4-flash:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

@@ -1,0 +1,9 @@
+{
+  "profile": "north-mini-code",
+  "provider": "openrouter",
+  "model": "cohere/north-mini-code:free",
+  "logical_model": null,
+  "status": "active",
+  "privacy": "review",
+  "free": true
+}

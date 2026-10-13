@@ -1,0 +1,14 @@
+{
+  "profile": "glm-5.3-flash",
+  "provider": "openrouter",
+  "model": "z-ai/glm-5.3-flash:free",
+  "logical_model": null,
+  "seconds": 0.306,
+  "returncode": 75,
+  "timed_out": false,
+  "status": "provider-unavailable",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

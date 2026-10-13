@@ -1,0 +1,209 @@
+[
+  {
+    "profile": "aihubmix-glm-5.3-flash",
+    "provider": "aihubmix",
+    "model": "coding-glm-5.3-flash-free",
+    "logical_model": "glm-5.3-flash",
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "cohere-north-mini-code",
+    "provider": "cohere",
+    "model": "north-mini-code-1-0",
+    "logical_model": "north-mini-code",
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "deepseek-v4-flash",
+    "provider": "openrouter",
+    "model": "deepseek/deepseek-v4-flash:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "dots3-note",
+    "provider": "openrouter",
+    "model": "dots-studio/dots-3-note-preview:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "free",
+    "provider": "openrouter",
+    "model": "openrouter/free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "public_only",
+    "free": true
+  },
+  {
+    "profile": "freeinference-glm-5.3-flash",
+    "provider": "freeinference",
+    "model": "glm-5.3-flash",
+    "logical_model": "glm-5.3-flash",
+    "status": "experimental",
+    "privacy": "public_only",
+    "free": true
+  },
+  {
+    "profile": "glm-5.3-flash",
+    "provider": "openrouter",
+    "model": "z-ai/glm-5.3-flash:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "google-gemini-3.8-flash",
+    "provider": "google",
+    "model": "gemini-3.8-flash",
+    "logical_model": "gemini-3.8-flash",
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "grok",
+    "provider": "grok",
+    "model": "grok-build-0.1",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": false
+  },
+  {
+    "profile": "groq-gpt-oss-120b",
+    "provider": "groq",
+    "model": "openai/gpt-oss-120b",
+    "logical_model": "gpt-oss-120b",
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "inkling-small",
+    "provider": "openrouter",
+    "model": "thinkingmachines/inkling-small:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "public_only",
+    "free": true
+  },
+  {
+    "profile": "inkling",
+    "provider": "openrouter",
+    "model": "thinkingmachines/inkling:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "public_only",
+    "free": true
+  },
+  {
+    "profile": "kilo-north-mini-code",
+    "provider": "kilo",
+    "model": "cohere/north-mini-code:free",
+    "logical_model": "north-mini-code",
+    "status": "experimental",
+    "privacy": "public_only",
+    "free": true
+  },
+  {
+    "profile": "laguna-xs",
+    "provider": "openrouter",
+    "model": "poolside/laguna-xs-2.1:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "laguna",
+    "provider": "openrouter",
+    "model": "poolside/laguna-s-2.1:free",
+    "logical_model": null,
+    "status": "active",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "ling-flash-fin",
+    "provider": "openrouter",
+    "model": "inclusionai/ling-3.0-flash-fin:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "nemotron-lightning",
+    "provider": "openrouter",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "nemotron-super",
+    "provider": "openrouter",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "public_only",
+    "free": true
+  },
+  {
+    "profile": "nemotron",
+    "provider": "openrouter",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "logical_model": null,
+    "status": "active",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "nex-mini",
+    "provider": "openrouter",
+    "model": "nex-agi/nex-n2.5-mini:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "nex-pro",
+    "provider": "openrouter",
+    "model": "nex-agi/nex-n2.5-pro:free",
+    "logical_model": null,
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "north-mini-code",
+    "provider": "openrouter",
+    "model": "cohere/north-mini-code:free",
+    "logical_model": null,
+    "status": "active",
+    "privacy": "review",
+    "free": true
+  },
+  {
+    "profile": "nvidia-deepseek-v4.1-flash",
+    "provider": "nvidia",
+    "model": "deepseek-ai/deepseek-v4.1-flash",
+    "logical_model": "deepseek-v4.1-flash",
+    "status": "experimental",
+    "privacy": "review",
+    "free": true
+  }
+]

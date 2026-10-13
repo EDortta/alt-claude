@@ -1,0 +1,14 @@
+{
+  "profile": "nemotron-lightning",
+  "provider": "openrouter",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "logical_model": null,
+  "seconds": 6.087,
+  "returncode": 0,
+  "timed_out": false,
+  "status": "ok",
+  "answered": true,
+  "score": 3,
+  "tests": 3,
+  "api_error": null
+}

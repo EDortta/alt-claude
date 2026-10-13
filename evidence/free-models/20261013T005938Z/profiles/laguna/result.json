@@ -1,0 +1,14 @@
+{
+  "profile": "laguna",
+  "provider": "openrouter",
+  "model": "poolside/laguna-s-2.1:free",
+  "logical_model": null,
+  "seconds": 6.574,
+  "returncode": 0,
+  "timed_out": false,
+  "status": "partial-2/3",
+  "answered": true,
+  "score": 2,
+  "tests": 3,
+  "api_error": null
+}

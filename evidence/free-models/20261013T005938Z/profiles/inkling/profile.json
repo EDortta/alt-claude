@@ -1,0 +1,9 @@
+{
+  "profile": "inkling",
+  "provider": "openrouter",
+  "model": "thinkingmachines/inkling:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "public_only",
+  "free": true
+}

@@ -1,0 +1,9 @@
+{
+  "profile": "aihubmix-glm-5.3-flash",
+  "provider": "aihubmix",
+  "model": "coding-glm-5.3-flash-free",
+  "logical_model": "glm-5.3-flash",
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

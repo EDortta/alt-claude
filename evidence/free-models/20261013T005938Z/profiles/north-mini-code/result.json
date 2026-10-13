@@ -1,0 +1,14 @@
+{
+  "profile": "north-mini-code",
+  "provider": "openrouter",
+  "model": "cohere/north-mini-code:free",
+  "logical_model": null,
+  "seconds": 4.62,
+  "returncode": 0,
+  "timed_out": false,
+  "status": "response",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

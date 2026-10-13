@@ -1,0 +1,3 @@
+alt-claude: OpenRouter free indisponível no preflight.
+Erro: modelo gratuito indisponível; nenhum provider pago/por assinatura será usado automaticamente.
+Para permitir fallback explicitamente: ALT_CLAUDE_ALLOW_FALLBACK=1 ...

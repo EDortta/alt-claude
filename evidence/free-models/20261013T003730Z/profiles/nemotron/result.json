@@ -1,0 +1,14 @@
+{
+  "profile": "nemotron",
+  "provider": "openrouter",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "logical_model": null,
+  "seconds": 10.431,
+  "returncode": 0,
+  "timed_out": false,
+  "status": "ok",
+  "answered": true,
+  "score": 3,
+  "tests": 3,
+  "api_error": null
+}

@@ -1,0 +1,9 @@
+{
+  "profile": "nemotron-lightning",
+  "provider": "openrouter",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

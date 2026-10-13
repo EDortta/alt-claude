@@ -1,0 +1,14 @@
+{
+  "profile": "deepseek-v4-flash",
+  "provider": "openrouter",
+  "model": "deepseek/deepseek-v4-flash:free",
+  "logical_model": null,
+  "seconds": 0.621,
+  "returncode": 75,
+  "timed_out": false,
+  "status": "provider-unavailable",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

@@ -1,0 +1,9 @@
+{
+  "profile": "freeinference-glm-5.3-flash",
+  "provider": "freeinference",
+  "model": "glm-5.3-flash",
+  "logical_model": "glm-5.3-flash",
+  "status": "experimental",
+  "privacy": "public_only",
+  "free": true
+}

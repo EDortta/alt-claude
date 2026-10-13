@@ -1,0 +1,14 @@
+{
+  "profile": "ling-flash-fin",
+  "provider": "openrouter",
+  "model": "inclusionai/ling-3.0-flash-fin:free",
+  "logical_model": null,
+  "seconds": 0.372,
+  "returncode": 75,
+  "timed_out": false,
+  "status": "provider-unavailable",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

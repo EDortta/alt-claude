@@ -1,0 +1,9 @@
+{
+  "profile": "free",
+  "provider": "openrouter",
+  "model": "openrouter/free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "public_only",
+  "free": true
+}

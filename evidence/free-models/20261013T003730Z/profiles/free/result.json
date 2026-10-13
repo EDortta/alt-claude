@@ -1,0 +1,14 @@
+{
+  "profile": "free",
+  "provider": "openrouter",
+  "model": "openrouter/free",
+  "logical_model": null,
+  "seconds": 4.518,
+  "returncode": 0,
+  "timed_out": false,
+  "status": "ok",
+  "answered": true,
+  "score": 3,
+  "tests": 3,
+  "api_error": null
+}

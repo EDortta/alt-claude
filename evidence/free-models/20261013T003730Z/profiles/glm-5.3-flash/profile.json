@@ -1,0 +1,9 @@
+{
+  "profile": "glm-5.3-flash",
+  "provider": "openrouter",
+  "model": "z-ai/glm-5.3-flash:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

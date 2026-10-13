@@ -1,0 +1,14 @@
+{
+  "profile": "dots3-note",
+  "provider": "openrouter",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "logical_model": null,
+  "seconds": 15.641,
+  "returncode": 0,
+  "timed_out": false,
+  "status": "ok",
+  "answered": true,
+  "score": 3,
+  "tests": 3,
+  "api_error": null
+}

@@ -1,0 +1,9 @@
+{
+  "profile": "nemotron-super",
+  "provider": "openrouter",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "public_only",
+  "free": true
+}

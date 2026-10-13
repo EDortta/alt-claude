@@ -1,0 +1,1 @@
+Erro: bridge OpenAI-compatible não encontrado. Rode ./install.sh novamente.

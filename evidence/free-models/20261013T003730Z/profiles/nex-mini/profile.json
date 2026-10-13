@@ -1,0 +1,9 @@
+{
+  "profile": "nex-mini",
+  "provider": "openrouter",
+  "model": "nex-agi/nex-n2.5-mini:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

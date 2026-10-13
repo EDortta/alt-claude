@@ -1,0 +1,14 @@
+{
+  "profile": "google-gemini-3.8-flash",
+  "provider": "google",
+  "model": "gemini-3.8-flash",
+  "logical_model": "gemini-3.8-flash",
+  "seconds": 0.094,
+  "returncode": 1,
+  "timed_out": false,
+  "status": "credential-missing",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

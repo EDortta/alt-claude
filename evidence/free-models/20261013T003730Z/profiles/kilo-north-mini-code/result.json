@@ -1,0 +1,14 @@
+{
+  "profile": "kilo-north-mini-code",
+  "provider": "kilo",
+  "model": "cohere/north-mini-code:free",
+  "logical_model": "north-mini-code",
+  "seconds": 0.157,
+  "returncode": 1,
+  "timed_out": false,
+  "status": "bridge-missing",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

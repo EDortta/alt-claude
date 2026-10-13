@@ -1,0 +1,9 @@
+{
+  "profile": "ling-flash-fin",
+  "provider": "openrouter",
+  "model": "inclusionai/ling-3.0-flash-fin:free",
+  "logical_model": null,
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

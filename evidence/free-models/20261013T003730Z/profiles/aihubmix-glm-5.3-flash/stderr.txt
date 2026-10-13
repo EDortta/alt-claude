@@ -1,0 +1,1 @@
+Erro: credencial não encontrada: /home/esteban/.config/credentials/personal/ai/aihubmix.env

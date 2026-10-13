@@ -1,0 +1,9 @@
+{
+  "profile": "nvidia-deepseek-v4.1-flash",
+  "provider": "nvidia",
+  "model": "deepseek-ai/deepseek-v4.1-flash",
+  "logical_model": "deepseek-v4.1-flash",
+  "status": "experimental",
+  "privacy": "review",
+  "free": true
+}

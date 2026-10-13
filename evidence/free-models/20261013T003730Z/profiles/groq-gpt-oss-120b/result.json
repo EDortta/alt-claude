@@ -1,0 +1,14 @@
+{
+  "profile": "groq-gpt-oss-120b",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "logical_model": "gpt-oss-120b",
+  "seconds": 0.092,
+  "returncode": 1,
+  "timed_out": false,
+  "status": "credential-missing",
+  "answered": false,
+  "score": null,
+  "tests": 0,
+  "api_error": null
+}

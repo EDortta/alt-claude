@@ -621,7 +621,7 @@ start_codex() {
     local port="${CLAUDE_CODEX_PORT:-8765}"
     local base_url="http://127.0.0.1:${port}"
     local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-codex.log"
-    local selected_model="${MODEL:-${CLAUDE_CODEX_MODEL:-claude-sonnet-5}}"
+    local selected_model="${MODEL:-${CLAUDE_CODEX_MODEL:-gpt-5.6-terra}}"
 
     have claude-codex-proxy ||
         die "claude-codex-proxy não está instalado"
@@ -660,6 +660,7 @@ start_codex() {
         export CLAUDE_CODE_AUTO_MODE_SERVER=0
     fi
 
+    echo "alt-claude: codex model=$selected_model" >&2
     set_all_models "$selected_model"
 }
 

@@ -663,11 +663,11 @@ for item in obj.get("data", []):
     ids.append(mid)
 
 preferred=(
-    "claude-sonnet-5.5",
-    "claude-sonnet-5",
-    "gpt-6-sol",
-    "gpt-6-luna",
-    "gpt-5.4",
+    "claude-sonnet-5.5[1m]",
+    "claude-sonnet-5[1m]",
+    "my-claude-gpt-6-sol[1m]",
+    "my-claude-gpt-6-luna[1m]",
+    "my-claude-gpt-5.4[1m]",
 )
 for want in preferred:
     if want in ids:
@@ -765,7 +765,7 @@ process.stdin.on("end", () => {
 '; then
         echo "Codex não está autenticado/configurado no copilot-api." >&2
         echo "Configure uma vez com:" >&2
-        echo "  npx --yes @jeffreycao/copilot-api@latest auth login --provider codex --api-home \"$api_home\"" >&2
+        echo "  npx --yes @jeffreycao/copilot-api@latest --api-home=\"$api_home\" auth login --provider codex" >&2
         exit 1
     fi
 

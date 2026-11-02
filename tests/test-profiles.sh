@@ -13,13 +13,16 @@ TEST_HOME="$TMP/home"
 mkdir -p "$BIN_DIR" "$DATA_DIR" "$CREDS" "$TEST_HOME"
 
 python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-policy.py" "$ROOT/tools/model-state.py" "$ROOT/tools/performance.py" "$ROOT/tools/xai-anthropic-bridge.py" "$ROOT/tools/openai-anthropic-bridge.py" "$ROOT/scripts/test-free-models.py"
-grep -q 'CLAUDE_CODEX_MODEL:-gpt-5.6-terra' "$ROOT/alt-claude-core" || { echo "Falha: default Codex não aponta para gpt-5.6-terra" >&2; exit 1; }
+bash -n "$ROOT/alt-claude" "$ROOT/alt-claude-core" "$ROOT/alt-claude-profile" "$ROOT/install.sh"
+grep -q 'providers.setdefault("github-copilot", {})\["enabled"\] = False' "$ROOT/alt-claude-core" || { echo "Falha: Codex não desabilita Copilot no runtime isolado" >&2; exit 1; }
+grep -q 'providers.setdefault("codex", {})\["enabled"\] = True' "$ROOT/alt-claude-core" || { echo "Falha: Codex nativo do copilot-api não é habilitado" >&2; exit 1; }
 grep -q 'providers.setdefault("codex", {})\["enabled"\] = False' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não desabilita Codex no runtime isolado" >&2; exit 1; }
 grep -q 'obj\["claudeAutoModel"\] = ""' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não desabilita auto-model dinâmico do Codex" >&2; exit 1; }
 grep -q 'selected_model="${selected_model#github-copilot/}"' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não normaliza prefixo github-copilot" >&2; exit 1; }
 grep -q 'mappings\["codex-auto-review"\] = "gpt-6-luna"' "$ROOT/alt-claude-core" || { echo "Falha: helper codex-auto-review não foi desviado do provider Codex" >&2; exit 1; }
-grep -q 'models_json="$(curl -fsS "${base_url}/v1/models")"' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não descobre modelos da conta" >&2; exit 1; }
-grep -q '"claude-sonnet-5.5"' "$ROOT/alt-claude-core" || { echo "Falha: preferência Copilot não inclui modelo descoberto atual" >&2; exit 1; }
+grep -q 'User-Agent: claude-code/alt-claude' "$ROOT/alt-claude-core" || { echo "Falha: descoberta de modelos não usa catálogo compatível com Claude Code" >&2; exit 1; }
+grep -q '"claude-sonnet-5.5\[1m\]"' "$ROOT/alt-claude-core" || { echo "Falha: preferência Copilot não usa ID Claude-compatible" >&2; exit 1; }
+grep -q '"codex/my-claude-gpt-5.6-terra\[1m\]"' "$ROOT/alt-claude-core" || { echo "Falha: preferência Codex não usa catálogo nativo Claude-compatible" >&2; exit 1; }
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash

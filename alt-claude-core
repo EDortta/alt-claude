@@ -528,6 +528,94 @@ clear_anthropic_env
 # Providers
 #
 
+probe_anthropic_model() {
+    local base_url="$1"
+    local model="$2"
+    local payload tmp status
+    tmp="$(mktemp "${TMPDIR:-/tmp}/alt-claude-model-probe.XXXXXX")"
+    payload="$(python3 - "$model" <<'PY'
+import json, sys
+print(json.dumps({
+    "model": sys.argv[1],
+    "max_tokens": 1,
+    "messages": [{"role": "user", "content": "OK"}],
+}))
+PY
+)"
+    status="$(curl -sS --connect-timeout 5 --max-time 20 \
+        -o "$tmp" -w '%{http_code}' \
+        -H 'content-type: application/json' \
+        -H 'anthropic-version: 2023-06-01' \
+        --data "$payload" \
+        "${base_url}/v1/messages" 2>/dev/null || true)"
+    if [[ "$status" =~ ^2 ]]; then
+        rm -f "$tmp"
+        return 0
+    fi
+    ALT_CLAUDE_LAST_MODEL_PROBE_STATUS="${status:-ERR}"
+    ALT_CLAUDE_LAST_MODEL_PROBE_BODY="$(cat "$tmp" 2>/dev/null || true)"
+    rm -f "$tmp"
+    return 1
+}
+
+select_working_copilot_model() {
+    local base_url="$1"
+    local models_json="$2"
+    local explicit_model="${3:-}"
+    local candidates model
+
+    if [[ -n "$explicit_model" ]]; then
+        if probe_anthropic_model "$base_url" "$explicit_model"; then
+            printf '%s\n' "$explicit_model"
+            return 0
+        fi
+        echo "alt-claude: modelo Copilot solicitado não passou no probe: $explicit_model (HTTP ${ALT_CLAUDE_LAST_MODEL_PROBE_STATUS:-ERR})" >&2
+        [[ -z "${ALT_CLAUDE_LAST_MODEL_PROBE_BODY:-}" ]] || printf '%s\n' "${ALT_CLAUDE_LAST_MODEL_PROBE_BODY:0:1000}" >&2
+        return 1
+    fi
+
+    candidates="$(printf '%s' "$models_json" | python3 -c '
+import json, sys
+obj=json.load(sys.stdin)
+ids=[]
+for item in obj.get("data", []):
+    if not isinstance(item, dict):
+        continue
+    mid=item.get("id")
+    if not isinstance(mid, str) or not mid:
+        continue
+    low=mid.lower()
+    if "image" in low or item.get("type") == "image":
+        continue
+    ids.append(mid)
+preferred=[
+    "claude-sonnet-5.5[1m]",
+    "claude-sonnet-5[1m]",
+    "my-claude-gpt-6-sol[1m]",
+    "my-claude-gpt-6-luna[1m]",
+    "my-claude-gpt-5.4[1m]",
+]
+seen=set()
+ordered=[]
+for mid in preferred + ids:
+    if mid in ids and mid not in seen:
+        seen.add(mid)
+        ordered.append(mid)
+print("\n".join(ordered))
+')"
+
+    while IFS= read -r model; do
+        [[ -n "$model" ]] || continue
+        echo "alt-claude: probing Copilot model=$model" >&2
+        if probe_anthropic_model "$base_url" "$model"; then
+            printf '%s\n' "$model"
+            return 0
+        fi
+        echo "alt-claude: rejeitado model=$model HTTP=${ALT_CLAUDE_LAST_MODEL_PROBE_STATUS:-ERR}" >&2
+    done <<<"$candidates"
+
+    return 1
+}
 start_copilot() {
     local port="${CLAUDE_COPILOT_PORT:-4141}"
     local base_url="http://127.0.0.1:${port}"
@@ -644,49 +732,15 @@ process.stdin.on("end", () => {
         exit 1
     fi
 
-    if [[ -z "$selected_model" ]]; then
-        local models_json
-        models_json="$(curl -fsS -H "User-Agent: claude-code/alt-claude" "${base_url}/v1/models")" || die "não foi possível descobrir modelos disponíveis no Copilot"
-        selected_model="$(printf '%s' "$models_json" | python3 -c '
-import json, sys
-obj=json.load(sys.stdin)
-ids=[]
-for item in obj.get("data", []):
-    if not isinstance(item, dict):
-        continue
-    mid=item.get("id")
-    if not isinstance(mid, str) or not mid:
-        continue
-    low=mid.lower()
-    if "image" in low or item.get("type") == "image":
-        continue
-    ids.append(mid)
-
-preferred=(
-    "claude-sonnet-5.5[1m]",
-    "claude-sonnet-5[1m]",
-    "my-claude-gpt-6-sol[1m]",
-    "my-claude-gpt-6-luna[1m]",
-    "my-claude-gpt-5.4[1m]",
-)
-for want in preferred:
-    if want in ids:
-        print(want)
-        raise SystemExit(0)
-
-for mid in ids:
-    low=mid.lower()
-    if any(token in low for token in ("claude", "gpt", "gemini")):
-        print(mid)
-        raise SystemExit(0)
-
-if ids:
-    print(ids[0])
-    raise SystemExit(0)
-raise SystemExit(2)
-')" || die "Copilot autenticou, mas não expôs nenhum modelo textual utilizável"
-    fi
-
+    local models_json explicit_model
+    models_json="$(curl -fsS -H "User-Agent: claude-code/alt-claude" "${base_url}/v1/models")" || die "não foi possível descobrir modelos disponíveis no Copilot"
+    explicit_model="$selected_model"
+    selected_model="$(select_working_copilot_model "$base_url" "$models_json" "$explicit_model")" || {
+        if [[ -n "$explicit_model" ]]; then
+            die "modelo Copilot solicitado não é utilizável: $explicit_model"
+        fi
+        die "nenhum modelo Copilot listado respondeu ao probe de inferência"
+    }
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="copilot-local"
     export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1

@@ -22,6 +22,8 @@ grep -q 'selected_model="${selected_model#github-copilot/}"' "$ROOT/alt-claude-c
 grep -q 'mappings\["codex-auto-review"\] = "gpt-6-luna"' "$ROOT/alt-claude-core" || { echo "Falha: helper codex-auto-review não foi desviado do provider Codex" >&2; exit 1; }
 grep -q 'User-Agent: claude-code/alt-claude' "$ROOT/alt-claude-core" || { echo "Falha: descoberta de modelos não usa catálogo compatível com Claude Code" >&2; exit 1; }
 grep -q '"claude-sonnet-5.5\[1m\]"' "$ROOT/alt-claude-core" || { echo "Falha: preferência Copilot não usa ID Claude-compatible" >&2; exit 1; }
+grep -q 'probe_anthropic_model()' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não valida inferência real antes de selecionar modelo" >&2; exit 1; }
+grep -q 'nenhum modelo Copilot listado respondeu ao probe de inferência' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não falha claramente quando catálogo não é utilizável" >&2; exit 1; }
 grep -q '"codex/my-claude-gpt-5.6-terra\[1m\]"' "$ROOT/alt-claude-core" || { echo "Falha: preferência Codex não usa catálogo nativo Claude-compatible" >&2; exit 1; }
 
 cat >"$TMP/fake-alt-claude" <<'EOF'

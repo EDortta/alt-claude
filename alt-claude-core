@@ -535,7 +535,7 @@ start_copilot() {
     local api_home
     local runtime_home
     local config
-    local selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-claude-sonnet-5}}"
+    local selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-}}"
 
     # copilot-api routes bare upstream model IDs through the built-in
     # github-copilot provider. A github-copilot/ prefix is not a valid
@@ -640,6 +640,49 @@ process.stdin.on("end", () => {
         echo "Log: $log"
         tail -n 40 "$log" 2>/dev/null || true
         exit 1
+    fi
+
+    if [[ -z "$selected_model" ]]; then
+        local models_json
+        models_json="$(curl -fsS "${base_url}/v1/models")" || die "não foi possível descobrir modelos disponíveis no Copilot"
+        selected_model="$(printf '%s' "$models_json" | python3 -c '
+import json, sys
+obj=json.load(sys.stdin)
+ids=[]
+for item in obj.get("data", []):
+    if not isinstance(item, dict):
+        continue
+    mid=item.get("id")
+    if not isinstance(mid, str) or not mid:
+        continue
+    low=mid.lower()
+    if "image" in low or item.get("type") == "image":
+        continue
+    ids.append(mid)
+
+preferred=(
+    "claude-sonnet-5.5",
+    "claude-sonnet-5",
+    "gpt-6-sol",
+    "gpt-6-luna",
+    "gpt-5.4",
+)
+for want in preferred:
+    if want in ids:
+        print(want)
+        raise SystemExit(0)
+
+for mid in ids:
+    low=mid.lower()
+    if any(token in low for token in ("claude", "gpt", "gemini")):
+        print(mid)
+        raise SystemExit(0)
+
+if ids:
+    print(ids[0])
+    raise SystemExit(0)
+raise SystemExit(2)
+')" || die "Copilot autenticou, mas não expôs nenhum modelo textual utilizável"
     fi
 
     export ANTHROPIC_BASE_URL="$base_url"

@@ -16,7 +16,8 @@ python3 -m py_compile "$ROOT/tools/session-compact.py" "$ROOT/tools/project-poli
 grep -q 'CLAUDE_CODEX_MODEL:-gpt-5.6-terra' "$ROOT/alt-claude-core" || { echo "Falha: default Codex não aponta para gpt-5.6-terra" >&2; exit 1; }
 grep -q 'providers.setdefault("codex", {})\["enabled"\] = False' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não desabilita Codex no runtime isolado" >&2; exit 1; }
 grep -q 'obj\["claudeAutoModel"\] = ""' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não desabilita auto-model dinâmico do Codex" >&2; exit 1; }
-grep -q 'selected_model="github-copilot/\$selected_model"' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não força namespace github-copilot" >&2; exit 1; }
+grep -q 'selected_model="${selected_model#github-copilot/}"' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não normaliza prefixo github-copilot" >&2; exit 1; }
+grep -q 'mappings\["codex-auto-review"\] = "gpt-6-luna"' "$ROOT/alt-claude-core" || { echo "Falha: helper codex-auto-review não foi desviado do provider Codex" >&2; exit 1; }
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash

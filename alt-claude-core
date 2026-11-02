@@ -537,10 +537,12 @@ start_copilot() {
     local config
     local selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-claude-sonnet-5}}"
 
+    # copilot-api routes bare upstream model IDs through the built-in
+    # github-copilot provider. A github-copilot/ prefix is not a valid
+    # upstream Copilot model ID and causes HTTP 400.
     case "$selected_model" in
-        github-copilot/*) ;;
-        */*) die "--use copilot aceita apenas modelos do provider github-copilot; recebido: $selected_model" ;;
-        *) selected_model="github-copilot/$selected_model" ;;
+        github-copilot/*) selected_model="${selected_model#github-copilot/}" ;;
+        codex/*) die "--use copilot não aceita modelo Codex: $selected_model" ;;
     esac
 
     load_credentials copilot
@@ -576,6 +578,10 @@ providers.setdefault("codex", {})["enabled"] = False
 # codex-auto-review; in isolated Copilot mode the requested model must remain
 # on GitHub Copilot for background/security-monitor requests too.
 obj["claudeAutoModel"] = ""
+# Keep default helper rewrites away from the disabled Codex provider.
+mappings = obj.setdefault("modelMappings", {})
+mappings["codex-auto-review"] = "gpt-6-luna"
+mappings["gpt-reserve"] = "gpt-6-luna"
 path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
@@ -638,6 +644,9 @@ process.stdin.on("end", () => {
 
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="copilot-local"
+    export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
+    export DISABLE_NON_ESSENTIAL_MODEL_CALLS=1
+    export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
     echo "alt-claude: copilot isolated from codex; model=$selected_model" >&2
 
     # copilot-api at 127.0.0.1:4141 is not currently compatible with Claude

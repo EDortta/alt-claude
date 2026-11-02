@@ -578,6 +578,8 @@ providers.setdefault("codex", {})["enabled"] = False
 # codex-auto-review; in isolated Copilot mode the requested model must remain
 # on GitHub Copilot for background/security-monitor requests too.
 obj["claudeAutoModel"] = ""
+small = obj.setdefault("smallModels", {})
+small["copilot"] = ""
 # Keep default helper rewrites away from the disabled Codex provider.
 mappings = obj.setdefault("modelMappings", {})
 mappings["codex-auto-review"] = "gpt-6-luna"
@@ -644,7 +646,7 @@ process.stdin.on("end", () => {
 
     if [[ -z "$selected_model" ]]; then
         local models_json
-        models_json="$(curl -fsS "${base_url}/v1/models")" || die "não foi possível descobrir modelos disponíveis no Copilot"
+        models_json="$(curl -fsS -H "User-Agent: claude-code/alt-claude" "${base_url}/v1/models")" || die "não foi possível descobrir modelos disponíveis no Copilot"
         selected_model="$(printf '%s' "$models_json" | python3 -c '
 import json, sys
 obj=json.load(sys.stdin)
@@ -705,49 +707,128 @@ raise SystemExit(2)
 }
 
 start_codex() {
-    local port="${CLAUDE_CODEX_PORT:-8765}"
+    local port="${CLAUDE_CODEX_PORT:-4142}"
     local base_url="http://127.0.0.1:${port}"
     local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-codex.log"
-    local selected_model="${MODEL:-${CLAUDE_CODEX_MODEL:-gpt-5.6-terra}}"
+    local api_home
+    local runtime_home
+    local selected_model="${MODEL:-${CLAUDE_CODEX_MODEL:-}}"
 
-    have claude-codex-proxy ||
-        die "claude-codex-proxy não está instalado"
-
+    have npx || die "npx não está no PATH"
+    have node || die "node não está no PATH"
     have curl || die "curl não está no PATH"
-    assert_codex_accounts
+    have python3 || die "python3 não está no PATH"
 
-    local pids
-    pids="$(pgrep -f "claude-codex-proxy start" 2>/dev/null || true)"
+    api_home="$(resolve_copilot_api_home)"
+    runtime_home="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-codex-api-${UID:-$(id -u)}"
+    rm -rf "$runtime_home"
+    mkdir -p "$runtime_home"
+    cp -a "$api_home"/. "$runtime_home"/
 
-    if [ -n "$pids" ]; then
-        kill $pids 2>/dev/null || true
-        sleep 0.5
+    python3 - "$runtime_home/config.json" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+obj = {}
+if path.exists():
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        obj = {}
+providers = obj.setdefault("providers", {})
+providers.setdefault("github-copilot", {})["enabled"] = False
+providers.setdefault("codex", {})["enabled"] = True
+obj["claudeAutoModel"] = ""
+small = obj.setdefault("smallModels", {})
+small["codex"] = ""
+path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+    local debug_json
+    debug_json="$(
+        npx --yes @jeffreycao/copilot-api@latest debug --api-home "$runtime_home" --json 2>/dev/null || true
+    )"
+
+    if ! printf '%s' "$debug_json" | node -e '
+let input = "";
+process.stdin.on("data", c => input += c);
+process.stdin.on("end", () => {
+    try {
+        const start = input.indexOf("{");
+        if (start < 0) process.exit(1);
+        const x = JSON.parse(input.slice(start));
+        const enabled = Array.isArray(x?.providers?.enabled) ? x.providers.enabled : [];
+        process.exit(enabled.includes("codex") ? 0 : 1);
+    } catch {
+        process.exit(1);
+    }
+});
+'; then
+        echo "Codex não está autenticado/configurado no copilot-api." >&2
+        echo "Configure uma vez com:" >&2
+        echo "  npx --yes @jeffreycao/copilot-api@latest auth login --provider codex --api-home \"$api_home\"" >&2
+        exit 1
     fi
 
-    PORT="$port" nohup claude-codex-proxy start \
-        >"$log" 2>&1 &
+    local pids
+    pids="$(pgrep -f "copilot-api .*start .*--port ${port}" 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+        kill $pids 2>/dev/null || true
+        sleep 0.3
+    fi
 
-    if ! wait_http "${base_url}/v1/models" 30; then
-        echo "Gateway Codex não iniciou."
-        echo "Log: $log"
+    nohup npx --yes @jeffreycao/copilot-api@latest start --api-home "$runtime_home" \
+        --port "$port" >"$log" 2>&1 &
+
+    if ! wait_http "${base_url}/v1/models" 50; then
+        echo "Gateway Codex não iniciou." >&2
+        echo "Log: $log" >&2
         tail -n 40 "$log" 2>/dev/null || true
         exit 1
     fi
 
-    export ANTHROPIC_BASE_URL="$base_url"
-    export ANTHROPIC_API_KEY="codex-local-proxy"
-
-    # claude-codex-proxy does not currently pass Claude Code's server-side
-    # safeguards/safeguard_results protocol through unchanged. Force the
-    # documented client-side classifier path so auto mode does not deny Bash
-    # merely because the gateway returned no safety verdict.
-    if [[ "${ALT_CLAUDE_ALLOW_SERVER_AUTO_MODE:-0}" == "1" ]]; then
-        echo "alt-claude: aviso: server-side auto mode foi forçado para um gateway não verificado." >&2
-    else
-        export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    if [[ -z "$selected_model" ]]; then
+        local models_json
+        models_json="$(curl -fsS -H "User-Agent: claude-code/alt-claude" "${base_url}/v1/models")" || die "não foi possível descobrir modelos Codex disponíveis"
+        selected_model="$(printf '%s' "$models_json" | python3 -c '
+import json, sys
+obj=json.load(sys.stdin)
+ids=[]
+for item in obj.get("data", []):
+    if not isinstance(item, dict):
+        continue
+    mid=item.get("id")
+    if not isinstance(mid, str) or not mid.startswith("codex/"):
+        continue
+    if "image" in mid.lower():
+        continue
+    ids.append(mid)
+preferred=(
+    "codex/my-claude-gpt-5.6-terra[1m]",
+    "codex/my-claude-gpt-5.6-sol[1m]",
+    "codex/my-claude-gpt-5.6-luna[1m]",
+    "codex/my-claude-gpt-5.5[1m]",
+)
+for want in preferred:
+    if want in ids:
+        print(want)
+        raise SystemExit(0)
+if ids:
+    print(ids[0])
+    raise SystemExit(0)
+raise SystemExit(2)
+' )" || die "Codex autenticou, mas não expôs nenhum modelo utilizável para Claude Code"
+    elif [[ "$selected_model" != codex/* ]]; then
+        selected_model="codex/$selected_model"
     fi
 
-    echo "alt-claude: codex model=$selected_model" >&2
+    export ANTHROPIC_BASE_URL="$base_url"
+    export ANTHROPIC_API_KEY="codex-local-gateway"
+    export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
+    export CLAUDE_CODE_AUTO_MODE_SERVER=0
+    export DISABLE_NON_ESSENTIAL_MODEL_CALLS=1
+    export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+    echo "alt-claude: codex isolated from copilot; model=$selected_model" >&2
+
     set_all_models "$selected_model"
 }
 

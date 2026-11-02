@@ -361,7 +361,7 @@ usage_copilot() {
     fi
 
     local debug_json
-    debug_json="$(npx --yes @jeffreycao/copilot-api@latest debug --api-home "$api_home" --json 2>/dev/null || true)"
+    debug_json="$(npx --yes @jeffreycao/copilot-api@latest debug --api-home "$runtime_home" --json 2>/dev/null || true)"
 
     if printf '%s' "$debug_json" | node -e '
 let s=""; process.stdin.on("data",c=>s+=c); process.stdin.on("end",()=>{
@@ -533,6 +533,7 @@ start_copilot() {
     local base_url="http://127.0.0.1:${port}"
     local log="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-copilot.log"
     local api_home
+    local runtime_home
     local config
     local selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-claude-sonnet-5}}"
 
@@ -541,9 +542,36 @@ start_copilot() {
     have npx || die "npx não está no PATH"
     have node || die "node não está no PATH"
     have curl || die "curl não está no PATH"
+    have python3 || die "python3 não está no PATH"
 
     api_home="$(resolve_copilot_api_home)"
     config="${api_home}/config.json"
+
+    # Use an isolated runtime copy so --use copilot can never consume the
+    # built-in Codex provider or ChatGPT credits through copilot-api helpers.
+    runtime_home="${XDG_RUNTIME_DIR:-/tmp}/alt-claude-copilot-api-${UID:-$(id -u)}"
+    rm -rf "$runtime_home"
+    mkdir -p "$runtime_home"
+    cp -a "$api_home"/. "$runtime_home"/
+
+    python3 - "$runtime_home/config.json" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+obj = {}
+if path.exists():
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        obj = {}
+providers = obj.setdefault("providers", {})
+providers.setdefault("github-copilot", {})["enabled"] = True
+providers.setdefault("codex", {})["enabled"] = False
+# Disable the dynamic Claude auto-model rewrite. With codex enabled it prefers
+# codex-auto-review; in isolated Copilot mode the requested model must remain
+# on GitHub Copilot for background/security-monitor requests too.
+obj["claudeAutoModel"] = ""
+path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
 
     local debug_json
 
@@ -591,7 +619,7 @@ process.stdin.on("end", () => {
         sleep 0.5
     fi
 
-    nohup npx --yes @jeffreycao/copilot-api@latest start --api-home "$api_home" \
+    nohup npx --yes @jeffreycao/copilot-api@latest start --api-home "$runtime_home" \
         --port "$port" \
         >"$log" 2>&1 &
 
@@ -604,6 +632,7 @@ process.stdin.on("end", () => {
 
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_API_KEY="copilot-local"
+    echo "alt-claude: copilot isolated from codex; model=$selected_model" >&2
 
     # copilot-api at 127.0.0.1:4141 is not currently compatible with Claude
     # Code's server-side safeguards/safeguard_results contract. Keep auto mode

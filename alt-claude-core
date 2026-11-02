@@ -537,6 +537,12 @@ start_copilot() {
     local config
     local selected_model="${MODEL:-${CLAUDE_COPILOT_MODEL:-claude-sonnet-5}}"
 
+    case "$selected_model" in
+        github-copilot/*) ;;
+        */*) die "--use copilot aceita apenas modelos do provider github-copilot; recebido: $selected_model" ;;
+        *) selected_model="github-copilot/$selected_model" ;;
+    esac
+
     load_credentials copilot
 
     have npx || die "npx não está no PATH"
@@ -576,7 +582,7 @@ PY
     local debug_json
 
     debug_json="$(
-        npx --yes @jeffreycao/copilot-api@latest debug --api-home "$api_home" --json 2>/dev/null || true
+        npx --yes @jeffreycao/copilot-api@latest debug --api-home "$runtime_home" --json 2>/dev/null || true
     )"
 
     if ! printf '%s' "$debug_json" | node -e '

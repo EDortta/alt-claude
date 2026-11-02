@@ -18,6 +18,8 @@ grep -q 'providers.setdefault("codex", {})\["enabled"\] = False' "$ROOT/alt-clau
 grep -q 'obj\["claudeAutoModel"\] = ""' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não desabilita auto-model dinâmico do Codex" >&2; exit 1; }
 grep -q 'selected_model="${selected_model#github-copilot/}"' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não normaliza prefixo github-copilot" >&2; exit 1; }
 grep -q 'mappings\["codex-auto-review"\] = "gpt-6-luna"' "$ROOT/alt-claude-core" || { echo "Falha: helper codex-auto-review não foi desviado do provider Codex" >&2; exit 1; }
+grep -q 'models_json="$(curl -fsS "${base_url}/v1/models")"' "$ROOT/alt-claude-core" || { echo "Falha: Copilot não descobre modelos da conta" >&2; exit 1; }
+grep -q '"claude-sonnet-5.5"' "$ROOT/alt-claude-core" || { echo "Falha: preferência Copilot não inclui modelo descoberto atual" >&2; exit 1; }
 
 cat >"$TMP/fake-alt-claude" <<'EOF'
 #!/usr/bin/env bash

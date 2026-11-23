@@ -841,8 +841,19 @@ process.stdin.on("end", () => {
     fi
 
     if [[ -z "$selected_model" ]]; then
-        local models_json
-        models_json="$(curl -fsS -H "User-Agent: claude-code/alt-claude" "${base_url}/v1/models")" || die "não foi possível descobrir modelos Codex disponíveis"
+        local models_json models_response model_status
+        models_response="$(curl -sS -H "User-Agent: claude-code/alt-claude" \
+            -w $'\n%{http_code}' "${base_url}/codex/v1/models" 2>/dev/null || true)"
+        model_status="${models_response##*$'\n'}"
+        models_json="${models_response%$'\n'*}"
+
+        if [[ "$model_status" != 2* ]]; then
+            if grep -Eiq 'refresh[ _-]?token.*already been used|already been used.*refresh[ _-]?token' <<<"$models_json"; then
+                die "o login Codex está configurado, mas a sessão OAuth não conseguiu renovar o refresh token (ele já foi usado). Faça login novamente com: npx --yes @jeffreycao/copilot-api@latest --api-home=\"$api_home\" auth login --provider codex"
+            fi
+            die "o login Codex está configurado, mas o gateway não conseguiu consultar os modelos (HTTP ${model_status:-desconhecido}). Faça login novamente com: npx --yes @jeffreycao/copilot-api@latest --api-home=\"$api_home\" auth login --provider codex"
+        fi
+
         selected_model="$(printf '%s' "$models_json" | python3 -c '
 import json, sys
 obj=json.load(sys.stdin)
@@ -870,7 +881,7 @@ if ids:
     print(ids[0])
     raise SystemExit(0)
 raise SystemExit(2)
-' )" || die "Codex autenticou, mas não expôs nenhum modelo utilizável para Claude Code"
+' )" || die "o login Codex está configurado, mas o gateway não retornou nenhum modelo utilizável para Claude Code"
     elif [[ "$selected_model" != codex/* ]]; then
         selected_model="codex/$selected_model"
     fi
